@@ -1,13 +1,18 @@
 import fs from "fs";
 import path from "path";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface BibleBook {
   abbrev: string;
   name: string;
+  /** chapters[i][j] = verse text (0-indexed) */
   chapters: string[][];
 }
 
-interface ScriptureVerse {
+export interface ScriptureVerse {
   book: string;
   chapter: number;
   verse: number;
@@ -15,178 +20,214 @@ interface ScriptureVerse {
   reference: string;
 }
 
-// Map version key to its JSON filename
-const VERSION_FILES: Record<string, string> = {
-  kjv:  "kjv.json",
-  nkjv: "nkjv.json",
-  web:  "web.json",
+// ─────────────────────────────────────────────────────────────────────────────
+// Canonical book list — used to derive abbreviations + ordering for both
+// Format A (array) and Format C (object-keyed) Bibles
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BOOK_ABBREVS: Record<string, string> = {
+  Genesis: "gen", Exodus: "exo", Leviticus: "lev", Numbers: "num",
+  Deuteronomy: "deu", Joshua: "jos", Judges: "jdg", Ruth: "rut",
+  "1 Samuel": "1sa", "2 Samuel": "2sa", "1 Kings": "1ki", "2 Kings": "2ki",
+  "1 Chronicles": "1ch", "2 Chronicles": "2ch", Ezra: "ezr", Nehemiah: "neh",
+  Esther: "est", Job: "job", Psalms: "psa", Proverbs: "pro",
+  Ecclesiastes: "ecc", "Song of Solomon": "sng", Isaiah: "isa",
+  Jeremiah: "jer", Lamentations: "lam", Ezekiel: "ezk", Daniel: "dan",
+  Hosea: "hos", Joel: "jol", Amos: "amo", Obadiah: "oba", Jonah: "jon",
+  Micah: "mic", Nahum: "nam", Habakkuk: "hab", Zephaniah: "zep",
+  Haggai: "hag", Zechariah: "zec", Malachi: "mal",
+  Matthew: "mat", Mark: "mrk", Luke: "luk", John: "jhn", Acts: "act",
+  Romans: "rom", "1 Corinthians": "1co", "2 Corinthians": "2co",
+  Galatians: "gal", Ephesians: "eph", Philippians: "php", Colossians: "col",
+  "1 Thessalonians": "1th", "2 Thessalonians": "2th",
+  "1 Timothy": "1ti", "2 Timothy": "2ti", Titus: "tit", Philemon: "phm",
+  Hebrews: "heb", James: "jas", "1 Peter": "1pe", "2 Peter": "2pe",
+  "1 John": "1jn", "2 John": "2jn", "3 John": "3jn", Jude: "jud",
+  Revelation: "rev",
 };
 
-class LocalBibleService {
-  private bibleData:  Map<string, BibleBook[]>            = new Map();
-  private bookMaps:   Map<string, Map<string, BibleBook>> = new Map();
-  private loaded:     Set<string>                         = new Set();
+// ─────────────────────────────────────────────────────────────────────────────
+// Version → filename map
+// Add future versions here — service will skip gracefully if file is absent
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // ── Normalizer for different Bible JSON formats ─────────────────────────
-  
-  /**
-   * Normalize various Bible JSON formats into the standard BibleBook interface
-   */
-  private normalizeBooks(books: any[]): BibleBook[] {
-    return books.map((book) => {
-      // Already correct format (KJV/NKJV): chapters is array of arrays of strings
-      if (Array.isArray(book.chapters) && book.chapters.length > 0 && typeof book.chapters[0]?.[0] === 'string') {
-        return book as BibleBook;
-      }
+const VERSION_FILES: Record<string, string> = {
+  kjv:      "kjv.json",
+  nkjv:     "NKJV_bible.json",
+  amp:      "AMP_bible.json",
+  niv:      "NIV_bible.json",
+  esv:      "ESV_bible.json",
+  nlt:      "NLT_bible.json",
+  nasb1995: "NASB1995_bible.json",
+  csb:      "CSB_bible.json",
+};
 
-      // WEB format: { book, bookId, englishName, testament, chapters: [{ chapter, verses: [{number, text}] }] }
-      if (Array.isArray(book.chapters) && book.chapters[0]?.verses) {
-        const normalizedChapters: string[][] = book.chapters.map((ch: any) =>
-          ch.verses
-            .sort((a: any, b: any) => a.number - b.number)
-            .map((v: any) => v.text as string)
-        );
+// ─────────────────────────────────────────────────────────────────────────────
+// Normalizers
+// ─────────────────────────────────────────────────────────────────────────────
 
-        return {
-          name:     book.englishName ?? book.name ?? book.book ?? "",
-          abbrev:   book.book?.toLowerCase() ?? book.abbrev?.toLowerCase() ?? book.abbreviation?.toLowerCase() ?? "",
-          chapters: normalizedChapters,
-        } as BibleBook;
-      }
+/**
+ * Format A — KJV-style: top-level array of books
+ * Each book: { abbrev, name, chapters: string[][] }
+ */
+function normalizeFormatA(raw: any[]): BibleBook[] {
+  return raw
+    .filter((b) => b && typeof b === "object" && Array.isArray(b.chapters))
+    .map((b) => ({
+      name: String(b.name ?? ""),
+      abbrev: String(b.abbrev ?? "").toLowerCase(),
+      chapters: (b.chapters as any[][]).map((ch) =>
+        Array.isArray(ch)
+          ? ch.map((v) => (typeof v === "string" ? v.replace(/[{}]/g, "").trim() : ""))
+          : []
+      ),
+    }));
+}
 
-      // Fallback: return as-is (might fail validation later)
-      console.warn(`[Scripture] Unknown book format for: ${book.englishName || book.name || book.book || 'unknown'}`);
-      return book as BibleBook;
+/**
+ * Format B — WEB-style: { books: [ { englishName, book, chapters: [{ verses: [{number,text}] }] } ] }
+ */
+function normalizeFormatB(books: any[]): BibleBook[] {
+  return books
+    .filter((b) => b && typeof b === "object")
+    .map((b) => {
+      const normalizedChapters: string[][] = (b.chapters ?? []).map((ch: any) =>
+        (ch.verses ?? [])
+          .sort((a: any, z: any) => a.number - z.number)
+          .map((v: any) => String(v.text ?? "").replace(/[{}]/g, "").trim())
+      );
+      const name: string = b.englishName ?? b.name ?? b.book ?? "";
+      const abbrev: string = (
+        b.book ?? b.abbrev ?? b.abbreviation ?? BOOK_ABBREVS[name] ?? name.slice(0, 3)
+      ).toLowerCase();
+      return { name, abbrev, chapters: normalizedChapters };
     });
-  }
+}
 
-  // ── Initialization ──────────────────────────────────────────────────────
+/**
+ * Format C — NKJV-style: top-level keyed object
+ * { "Genesis": { "1": { "1": "text", "2": "text" }, "2": { ... } }, ... }
+ */
+function normalizeFormatC(raw: Record<string, any>): BibleBook[] {
+  return Object.entries(raw).map(([bookName, chaptersObj]) => {
+    const chapters: string[][] = Object.keys(chaptersObj)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((chNum) => {
+        const versesObj: Record<string, string> = chaptersObj[String(chNum)] ?? {};
+        return Object.keys(versesObj)
+          .map(Number)
+          .sort((a, b) => a - b)
+          .map((vNum) =>
+            String(versesObj[String(vNum)] ?? "")
+              .replace(/[{}]/g, "")
+              .trim()
+          );
+      });
 
-  async initialize(version: string = "kjv"): Promise<void> {
+    const abbrev = (BOOK_ABBREVS[bookName] ?? bookName.slice(0, 3)).toLowerCase();
+
+    return { name: bookName, abbrev, chapters };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service
+// ─────────────────────────────────────────────────────────────────────────────
+
+class LocalBibleService {
+  private bibleData: Map<string, BibleBook[]> = new Map();
+  private bookMaps:  Map<string, Map<string, BibleBook>> = new Map();
+  private loaded:    Set<string> = new Set();
+
+  // ── Initialization ────────────────────────────────────────────────────────
+
+  async initialize(version: string): Promise<void> {
     if (this.loaded.has(version)) return;
 
     const fileName = VERSION_FILES[version];
     if (!fileName) {
-      console.warn(`[Scripture] No local file registered for version: ${version}`);
+      console.warn(`[Scripture] No file registered for version: ${version}`);
       return;
     }
 
+    // Root of the project (four levels up from src/modules/scripture/services/)
     const biblePath = path.join(__dirname, "../../../..", fileName);
 
     if (!fs.existsSync(biblePath)) {
-      console.warn(`[Scripture] File not found for version ${version}: ${biblePath}`);
+      console.warn(`[Scripture] File not found for ${version}: ${biblePath}`);
       return;
     }
 
     try {
       let data = fs.readFileSync(biblePath, "utf-8");
-
-      // Strip BOM if present
-      if (data.charCodeAt(0) === 0xFEFF) data = data.slice(1);
+      if (data.charCodeAt(0) === 0xfeff) data = data.slice(1); // strip BOM
       data = data.trimStart();
 
-      // Validate JSON structure before parsing
-      if (!data.startsWith("[") && !data.startsWith("{")) {
-        throw new Error(`Invalid format for ${version}. Starts with: ${data.substring(0, 50)}`);
-      }
-
       const raw = JSON.parse(data);
+      let books: BibleBook[];
 
-      // Support both top-level formats:
-      // Format A (array):  [ { abbrev, name, chapters }, ... ]
-      // Format B (object): { version, name, books: [ { ... }, ... ] }
-      let parsed: BibleBook[];
-      
       if (Array.isArray(raw)) {
-        // Format A: Direct array of books (e.g., KJV format)
-        parsed = raw;
-        console.log(`[Scripture] Detected Format A (array) for ${version}`);
-      } else if (raw && typeof raw === 'object' && raw.books && Array.isArray(raw.books)) {
-        // Format B: Object with books array (e.g., WEB format)
-        parsed = raw.books;
-        console.log(`[Scripture] Detected Format B (object) for ${version}`);
-        
-        // Log version metadata if available
-        if (raw.version) {
-          console.log(`[Scripture] Version info: ${raw.version}${raw.name ? ` - ${raw.name}` : ''}`);
+        // Format A or B (array root)
+        const first = raw[0];
+        if (first?.chapters?.[0]?.verses !== undefined) {
+          // Format B — WEB
+          books = normalizeFormatB(raw);
+          console.log(`[Scripture] ${version.toUpperCase()}: Format B (WEB-style array)`);
+        } else {
+          // Format A — KJV
+          books = normalizeFormatA(raw);
+          console.log(`[Scripture] ${version.toUpperCase()}: Format A (KJV-style array)`);
+        }
+      } else if (raw && typeof raw === "object") {
+        if (raw.books && Array.isArray(raw.books)) {
+          // Format B wrapped in object
+          books = normalizeFormatB(raw.books);
+          console.log(`[Scripture] ${version.toUpperCase()}: Format B (wrapped object)`);
+        } else {
+          // Format C — NKJV / ESV / NLT / NASB / CSB
+          books = normalizeFormatC(raw as Record<string, any>);
+          console.log(`[Scripture] ${version.toUpperCase()}: Format C (keyed object)`);
         }
       } else {
-        throw new Error(`Unrecognized format for ${version}. Expected array or object with 'books' array`);
+        throw new Error(`Unrecognized JSON structure for ${version}`);
       }
 
-      // Normalize all books to standard BibleBook format
-      const normalized = this.normalizeBooks(parsed);
-      
-      // Validate normalized data
-      if (!Array.isArray(normalized)) {
-        throw new Error(`Bible data for ${version} is not an array after normalization`);
-      }
+      // Validate
+      if (books.length === 0) throw new Error(`No books parsed for ${version}`);
 
-      if (normalized.length === 0) {
-        throw new Error(`Bible data for ${version} is empty`);
-      }
-
-      // Create book lookup map
+      // Build lookup map
       const bookMap = new Map<string, BibleBook>();
-      let validBookCount = 0;
-      
-      normalized.forEach((book, index) => {
-        // Validate book structure
-        if (!book.name || !book.abbrev || !Array.isArray(book.chapters)) {
-          console.warn(`[Scripture] Skipping invalid book at index ${index} in ${version}:`, {
-            hasName: !!book.name,
-            hasAbbrev: !!book.abbrev,
-            hasChapters: Array.isArray(book.chapters),
-          });
-          return;
-        }
-        
+      let valid = 0;
+      for (const book of books) {
+        if (!book.name || !book.abbrev || !Array.isArray(book.chapters)) continue;
         bookMap.set(book.name.toLowerCase(), book);
         bookMap.set(book.abbrev.toLowerCase(), book);
-        validBookCount++;
-      });
-
-      if (validBookCount === 0) {
-        throw new Error(`No valid books found in ${version} data`);
+        valid++;
       }
 
-      // Store the normalized data
-      this.bibleData.set(version, normalized);
+      if (valid === 0) throw new Error(`No valid books after normalization for ${version}`);
+
+      this.bibleData.set(version, books);
       this.bookMaps.set(version, bookMap);
       this.loaded.add(version);
 
-      console.log(`[Scripture] Loaded ${version.toUpperCase()}: ${validBookCount} valid books (${normalized.length} total entries)`);
-      
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        console.error(`[Scripture] JSON parse error for ${version}:`, error.message);
-      } else {
-        console.error(`[Scripture] Failed to load ${version}:`, error);
-      }
-      // Don't throw - allow other versions to load
+      console.log(`[Scripture] Loaded ${version.toUpperCase()}: ${valid} books`);
+    } catch (err) {
+      console.error(`[Scripture] Failed to load ${version}:`, err);
+      // Don't throw — let other versions continue loading
     }
   }
 
   async initializeAll(): Promise<void> {
     const versions = Object.keys(VERSION_FILES);
-    console.log(`[Scripture] Initializing ${versions.length} versions: ${versions.join(", ")}`);
-    
-    const results = await Promise.allSettled(
-      versions.map((v) => this.initialize(v))
+    await Promise.allSettled(versions.map((v) => this.initialize(v)));
+    console.log(
+      `[Scripture] Ready — loaded: ${Array.from(this.loaded).join(", ") || "none"}`
     );
-    
-    // Log results
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.error(`[Scripture] Failed to initialize ${versions[index]}:`, result.reason);
-      }
-    });
-    
-    const loadedCount = this.loaded.size;
-    console.log(`[Scripture] Successfully loaded ${loadedCount}/${versions.length} versions`);
   }
 
-  isLoaded(version: string = "kjv"): boolean {
+  isLoaded(version: string): boolean {
     return this.loaded.has(version);
   }
 
@@ -194,71 +235,67 @@ class LocalBibleService {
     return Array.from(this.loaded);
   }
 
-  // ── Internal helpers ────────────────────────────────────────────────────
+  // ── Reference parser ──────────────────────────────────────────────────────
 
   private parseReference(reference: string): {
     bookName: string;
     chapters: number[];
-    verses: { [key: number]: number[] };
+    verses: Record<number, number[]>;
   } | null {
     const trimmed = reference.trim();
 
-    // Whole-chapter: "John 3"
+    // Whole chapter: "John 3"
     const chapterOnly = trimmed.match(/^([\w\s]+?)\s+(\d+)$/);
     if (chapterOnly) {
-      const [, bookName, chapter] = chapterOnly;
-      const chapterNum = parseInt(chapter, 10);
+      const chapterNum = parseInt(chapterOnly[2], 10);
       if (chapterNum < 1) return null;
       return {
-        bookName: bookName.trim(),
+        bookName: chapterOnly[1].trim(),
         chapters: [chapterNum],
         verses: { [chapterNum]: Array.from({ length: 200 }, (_, i) => i + 1) },
       };
     }
 
-    // Normalize "Genesis 1 2" → "Genesis 1:2"
-    const normalized = trimmed
-      .replace(/^([\w\s]+?)\s+(\d+)\s+(\d+)$/, "$1 $2:$3")
-      .trim();
+    // Normalise "Genesis 1 2" → "Genesis 1:2"
+    const norm = trimmed.replace(/^([\w\s]+?)\s+(\d+)\s+(\d+)$/, "$1 $2:$3").trim();
 
-    const match = normalized.match(
-      /^([\w\s]+?)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?$/
-    );
+    // "Book Ch:V" or "Book Ch:V-V" or "Book Ch:V-Ch:V"
+    const match = norm.match(/^([\w\s]+?)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?$/);
     if (!match) return null;
 
-    const [, bookName, chapter, verse, endChapter, endVerse] = match;
-    const startChapter   = parseInt(chapter, 10);
-    const startVerse     = parseInt(verse, 10);
-    const endChapterNum  = endChapter ? parseInt(endChapter, 10) : startChapter;
-    const endVerseNum    = endVerse   ? parseInt(endVerse, 10)   : startVerse;
+    const [, bookName, ch, v, endCh, endV] = match;
+    const startChapter = parseInt(ch, 10);
+    const startVerse   = parseInt(v, 10);
+    const endChapter   = endCh ? parseInt(endCh, 10) : startChapter;
+    const endVerse     = endV  ? parseInt(endV, 10)  : startVerse;
 
-    if (startChapter < 1 || startVerse < 1 || endChapterNum < startChapter) return null;
+    if (startChapter < 1 || startVerse < 1 || endChapter < startChapter) return null;
 
     const chapters: number[] = [];
-    const verses: { [key: number]: number[] } = {};
-
-    for (let c = startChapter; c <= endChapterNum; c++) {
+    const verses: Record<number, number[]> = {};
+    for (let c = startChapter; c <= endChapter; c++) {
       chapters.push(c);
       const vStart = c === startChapter ? startVerse : 1;
-      const vEnd   = c === endChapterNum ? endVerseNum : 999;
-      verses[c] = [];
-      for (let v = vStart; v <= vEnd; v++) verses[c].push(v);
+      const vEnd   = c === endChapter   ? endVerse   : 999;
+      verses[c] = Array.from({ length: vEnd - vStart + 1 }, (_, i) => vStart + i);
     }
 
     return { bookName: bookName.trim(), chapters, verses };
   }
 
-  private findBook(bookName: string, version: string = "kjv"): BibleBook | null {
+  // ── Book finder ───────────────────────────────────────────────────────────
+
+  private findBook(bookName: string, version: string): BibleBook | null {
     const bookMap = this.bookMaps.get(version);
     if (!bookMap) return null;
 
-    const normalized = bookName.toLowerCase();
+    const normalized = bookName.toLowerCase().trim();
 
-    // Direct match
+    // Exact match (name or abbrev)
     if (bookMap.has(normalized)) return bookMap.get(normalized)!;
 
-    // Prefix match (e.g., "Rom" matches "Romans")
-    for (const [, book] of bookMap) {
+    // Prefix match
+    for (const book of bookMap.values()) {
       if (
         book.name.toLowerCase().startsWith(normalized) ||
         book.abbrev.toLowerCase().startsWith(normalized)
@@ -270,7 +307,7 @@ class LocalBibleService {
     return null;
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────────────────────
 
   getScripture(reference: string, version: string = "kjv"): ScriptureVerse[] | null {
     if (!this.loaded.has(version)) {
@@ -286,23 +323,22 @@ class LocalBibleService {
 
     const results: ScriptureVerse[] = [];
 
-    parsed.chapters.forEach((chapterNum) => {
-      const chapterIdx = chapterNum - 1;
-      if (!book.chapters[chapterIdx]) return;
-
-      parsed.verses[chapterNum].forEach((verseNum) => {
-        const text = book.chapters[chapterIdx][verseNum - 1];
+    for (const chapterNum of parsed.chapters) {
+      const chapter = book.chapters[chapterNum - 1];
+      if (!chapter) continue;
+      for (const verseNum of parsed.verses[chapterNum]) {
+        const text = chapter[verseNum - 1];
         if (text) {
           results.push({
             book:      book.name,
             chapter:   chapterNum,
             verse:     verseNum,
-            text:      text.replace(/[{}]/g, ""),
+            text,
             reference: `${book.name} ${chapterNum}:${verseNum}`,
           });
         }
-      });
-    });
+      }
+    }
 
     return results.length > 0 ? results : null;
   }
@@ -310,22 +346,24 @@ class LocalBibleService {
   searchScriptures(query: string, limit: number = 20, version: string = "kjv"): ScriptureVerse[] {
     if (!this.loaded.has(version)) return [];
 
-    const data       = this.bibleData.get(version)!;
-    const normalized = query.toLowerCase().trim();
-    const keywords   = normalized.split(/\s+/).filter((k) => k.length > 2);
+    const data     = this.bibleData.get(version)!;
+    const keywords = query
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .filter((k) => k.length > 2);
+
     if (keywords.length === 0) return [];
 
-    // Book-name search → return first chapter
-    const matchedBook = this.findBook(normalized, version);
+    // Book-name query → return first chapter
+    const matchedBook = this.findBook(query.trim(), version);
     if (matchedBook) {
       const results: ScriptureVerse[] = [];
-      const firstChapter = matchedBook.chapters[0] ?? [];
-      for (let i = 0; i < firstChapter.length && results.length < limit; i++) {
-        const text = firstChapter[i];
+      for (let i = 0; i < (matchedBook.chapters[0]?.length ?? 0) && results.length < limit; i++) {
+        const text = matchedBook.chapters[0][i];
         if (text) {
           results.push({
-            book: matchedBook.name, chapter: 1, verse: i + 1,
-            text: text.replace(/[{}]/g, ""),
+            book: matchedBook.name, chapter: 1, verse: i + 1, text,
             reference: `${matchedBook.name} 1:${i + 1}`,
           });
         }
@@ -335,15 +373,13 @@ class LocalBibleService {
 
     // Full-text keyword search
     const results: ScriptureVerse[] = [];
-
     outer: for (const book of data) {
       for (let ci = 0; ci < book.chapters.length; ci++) {
         for (let vi = 0; vi < book.chapters[ci].length; vi++) {
-          const verse = book.chapters[ci][vi];
-          if (keywords.some((kw) => verse.toLowerCase().includes(kw))) {
+          const text = book.chapters[ci][vi];
+          if (text && keywords.some((kw) => text.toLowerCase().includes(kw))) {
             results.push({
-              book: book.name, chapter: ci + 1, verse: vi + 1,
-              text: verse.replace(/[{}]/g, ""),
+              book: book.name, chapter: ci + 1, verse: vi + 1, text,
               reference: `${book.name} ${ci + 1}:${vi + 1}`,
             });
             if (results.length >= limit) break outer;
@@ -357,10 +393,10 @@ class LocalBibleService {
 
   getBooks(version: string = "kjv"): { name: string; abbrev: string; chapters: number }[] {
     if (!this.loaded.has(version)) return [];
-    return (this.bibleData.get(version) ?? []).map((book) => ({
-      name:     book.name,
-      abbrev:   book.abbrev,
-      chapters: book.chapters.length,
+    return (this.bibleData.get(version) ?? []).map((b) => ({
+      name:     b.name,
+      abbrev:   b.abbrev,
+      chapters: b.chapters.length,
     }));
   }
 
@@ -376,20 +412,6 @@ class LocalBibleService {
     const book = this.findBook(bookName, version);
     if (!book) return null;
     return book.chapters[chapter - 1]?.length ?? null;
-  }
-
-  /**
-   * Get version metadata if available
-   */
-  getVersionInfo(version: string = "kjv"): { version: string; name?: string; bookCount: number } | null {
-    if (!this.loaded.has(version)) return null;
-    const data = this.bibleData.get(version);
-    if (!data) return null;
-    
-    return {
-      version: version,
-      bookCount: data.length,
-    };
   }
 
   reset(): void {

@@ -1,0 +1,80 @@
+.
+├── README.md
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── public
+│   ├── favicon.svg
+│   └── icons.svg
+├── src
+│   ├── app
+│   │   ├── App.tsx
+│   │   ├── providers.tsx
+│   │   └── router.tsx
+│   ├── components
+│   │   ├── announcements
+│   │   ├── layout
+│   │   ├── live
+│   │   ├── queue
+│   │   ├── reports
+│   │   ├── scripture
+│   │   └── ui
+│   ├── hooks
+│   │   ├── index.ts
+│   │   ├── useLiveService.ts
+│   │   ├── useScriptureSearch.ts
+│   │   └── useSocket.ts
+│   ├── index.css
+│   ├── main.tsx
+│   ├── pages
+│   │   ├── announcements
+│   │   ├── auth
+│   │   ├── dashboard
+│   │   ├── feed
+│   │   ├── giving
+│   │   ├── live-service
+│   │   ├── monitoring
+│   │   └── sermons
+│   ├── services
+│   │   ├── announcement.service.ts
+│   │   ├── api.ts
+│   │   ├── auth.service.ts
+│   │   ├── event.service.ts
+│   │   ├── feed.service.ts
+│   │   ├── giving.service.ts
+│   │   ├── scripture.service.ts
+│   │   ├── sermon.service.ts
+│   │   └── socket.ts
+│   ├── store
+│   │   ├── announcement.store.ts
+│   │   ├── auth.store.ts
+│   │   ├── scripture.store.ts
+│   │   └── service.store.ts
+│   ├── styles
+│   │   ├── globals.css
+│   │   └── theme.ts
+│   ├── types
+│   │   ├── auth.types.ts
+│   │   ├── giving.types.ts
+│   │   ├── index.ts
+│   │   ├── media.types.ts
+│   │   ├── scripture.types.ts
+│   │   └── service.types.ts
+│   └── utils
+│       ├── constants.ts
+│       ├── formatters.ts
+│       ├── helpers.ts
+│       ├── index.ts
+│       ├── media-constants.ts
+│       ├── media-data.ts
+│       └── validators.ts
+├── structure.txt
+├── tailwind.config.js
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+27 directories, 51 files

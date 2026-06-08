@@ -1,0 +1,87 @@
+.
+├── AGENTS.md
+├── CLAUDE.md
+├── LICENSE
+├── app.json
+├── assets
+│   ├── android-icon-background.png
+│   ├── android-icon-foreground.png
+│   ├── android-icon-monochrome.png
+│   ├── favicon.png
+│   ├── icon.png
+│   └── splash-icon.png
+├── eas.json
+├── index.ts
+├── metro.config.js
+├── package-lock.json
+├── package.json
+├── profilescreen-tsc-output.txt
+├── src
+│   ├── app
+│   │   └── App.tsx
+│   ├── components
+│   │   ├── CrossIcon.tsx
+│   │   ├── buttons
+│   │   ├── cards
+│   │   ├── forms
+│   │   ├── layout
+│   │   ├── modals
+│   │   └── navigation
+│   ├── constants.ts
+│   ├── context
+│   │   ├── AuthContext.tsx
+│   │   └── SocketContext.tsx
+│   ├── hooks
+│   │   └── useLiveService.ts
+│   ├── navigation
+│   │   ├── AuthNavigator.tsx
+│   │   ├── MainTabNavigator.tsx
+│   │   ├── RootNavigator.tsx
+│   │   └── navigation.ts
+│   ├── screens
+│   │   ├── AccountSettingsScreen.tsx
+│   │   ├── BookmarkedScripturesScreen.tsx
+│   │   ├── FeedScreen.tsx
+│   │   ├── GivingHistoryScreen.tsx
+│   │   ├── GivingScreen.tsx
+│   │   ├── HomeScreen.tsx
+│   │   ├── LeaderPendingScreen.tsx
+│   │   ├── LeaderRegisterScreen.tsx
+│   │   ├── LiveServiceScreen.tsx
+│   │   ├── LoginScreen.tsx
+│   │   ├── MemberRegisterScreen.tsx
+│   │   ├── MinistriesScreen.tsx
+│   │   ├── PrayerScreen.tsx
+│   │   ├── ProfileScreen.tsx
+│   │   ├── RegisterScreen.tsx
+│   │   ├── RoleSelectScreen.tsx
+│   │   ├── SermonNotesScreen.tsx
+│   │   ├── SplashScreen.tsx
+│   │   ├── WelcomeScreen.tsx
+│   │   └── bible
+│   ├── services
+│   │   ├── auth.service.ts
+│   │   ├── event.service.ts
+│   │   ├── feed.service.ts
+│   │   ├── giving.service.ts
+│   │   ├── ministry.service.ts
+│   │   ├── notification.service.ts
+│   │   ├── prayer.service.ts
+│   │   ├── profile-picture.service.ts
+│   │   ├── scripture.service.ts
+│   │   ├── sermon-note.service.ts
+│   │   ├── sermon.service.ts
+│   │   └── socket.service.ts
+│   ├── styles
+│   │   ├── colors.ts
+│   │   ├── shadows.ts
+│   │   ├── spacing.ts
+│   │   ├── theme.ts
+│   │   └── typography.ts
+│   ├── types.ts
+│   └── utils
+│       └── daily-scripture.ts
+├── structure.txt
+└── tsconfig.json
+
+19 directories, 66 files

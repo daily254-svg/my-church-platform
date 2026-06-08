@@ -1,0 +1,132 @@
+.
+├── AMP_bible.json
+├── NIV_bible.json
+├── NKJV_bible.json
+├── kjv.json
+├── nkjv.json
+├── package-lock.json
+├── package.json
+├── prisma
+│   ├── migrations
+│   │   ├── 20260522220135_init
+│   │   │   └── migration.sql
+│   │   ├── 20260522225847_add_phone_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260522230934_add_updated_at_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260523133108_add_gender_status_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260523142632_add_gender_status_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260524112844_add_ministry_requested_role_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260526064230_add_giving_model
+│   │   │   └── migration.sql
+│   │   ├── 20260526093714_add_event_model
+│   │   │   └── migration.sql
+│   │   ├── 20260526103647_add_prayer_model
+│   │   │   └── migration.sql
+│   │   ├── 20260526113758_add_feed_models
+│   │   │   └── migration.sql
+│   │   ├── 20260526131117_add_ministry_chat_models
+│   │   │   └── migration.sql
+│   │   ├── 20260528081538_add_push_token_to_user
+│   │   │   └── migration.sql
+│   │   ├── 20260528090335_add_sermon_notes
+│   │   │   └── migration.sql
+│   │   ├── 20260528101110_add_avatar_url_to_user
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   ├── schema.prisma
+│   └── seed.ts
+├── src
+│   ├── app.ts
+│   ├── config
+│   │   ├── db.ts
+│   │   ├── env.ts
+│   │   └── socket.ts
+│   ├── middleware
+│   │   ├── auth.middleware.ts
+│   │   ├── error.middleware.ts
+│   │   ├── role.middleware.ts
+│   │   └── upload.middleware.ts
+│   ├── modules
+│   │   ├── announcements
+│   │   │   ├── announcement.controller.ts
+│   │   │   ├── announcement.routes.ts
+│   │   │   ├── announcement.service.ts
+│   │   │   └── announcement.validation.ts
+│   │   ├── auth
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── auth.service.ts
+│   │   │   └── auth.validation.ts
+│   │   ├── events
+│   │   │   ├── event.controller.ts
+│   │   │   ├── event.routes.ts
+│   │   │   ├── event.service.ts
+│   │   │   └── event.validation.ts
+│   │   ├── feed
+│   │   │   ├── feed.controller.ts
+│   │   │   ├── feed.routes.ts
+│   │   │   ├── feed.service.ts
+│   │   │   └── feed.validation.ts
+│   │   ├── giving
+│   │   │   ├── giving.controller.ts
+│   │   │   ├── giving.routes.ts
+│   │   │   ├── giving.service.ts
+│   │   │   └── giving.validation.ts
+│   │   ├── live-service
+│   │   │   └── validators
+│   │   ├── ministry
+│   │   │   ├── ministry.controller.ts
+│   │   │   ├── ministry.routes.ts
+│   │   │   ├── ministry.service.ts
+│   │   │   └── ministry.validation.ts
+│   │   ├── prayers
+│   │   │   ├── prayer.controller.ts
+│   │   │   ├── prayer.routes.ts
+│   │   │   ├── prayer.service.ts
+│   │   │   └── prayer.validation.ts
+│   │   ├── scripture
+│   │   │   ├── scripture.routes.ts
+│   │   │   ├── services
+│   │   │   └── validators
+│   │   ├── sermon-notes
+│   │   │   ├── sermon-note.controller.ts
+│   │   │   ├── sermon-note.routes.ts
+│   │   │   ├── sermon-note.service.ts
+│   │   │   └── sermon-note.validation.ts
+│   │   ├── sermons
+│   │   │   ├── sermon.controller.ts
+│   │   │   ├── sermon.routes.ts
+│   │   │   ├── sermon.service.ts
+│   │   │   └── sermon.validation.ts
+│   │   └── upload
+│   │       └── upload.routes.ts
+│   ├── server.ts
+│   ├── services
+│   │   ├── live-state.store.ts
+│   │   └── push.service.ts
+│   ├── sockets
+│   │   ├── announcement.events.ts
+│   │   ├── ministry.events.ts
+│   │   ├── scripture.events.ts
+│   │   ├── service.events.ts
+│   │   └── socket.auth.ts
+│   ├── types
+│   │   └── socket.types.ts
+│   └── utils
+│       ├── excel.ts
+│       ├── jwt.ts
+│       ├── response.ts
+│       └── validators.ts
+├── structure.txt
+├── tsconfig.json
+├── uploads
+│   ├── 1779799836403-939970820.jpg
+│   ├── 1779964277037-338705514.jpg
+│   └── 1780570818178-334659743.jpg
+└── web.json
+
+41 directories, 89 files

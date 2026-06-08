@@ -27,15 +27,6 @@ interface BibleChapterRouteProp {
   version?: string;
 }
 
-// Updated versions - only local versions and AMP/NENO from API
-const VERSIONS = [
-  { label: 'KJV',  value: 'kjv',  source: 'local' },
-  { label: 'NKJV', value: 'nkjv', source: 'local' },
-  { label: 'WEB',  value: 'web',  source: 'local' },
-  { label: 'AMP',  value: 'amp',  source: 'api-bible' },
-  { label: 'NENO', value: 'neno', source: 'api-bible' },
-];
-
 const VerseItem = React.memo(({ verse, index }: { verse: ScriptureResult; index: number }) => {
   if (!verse || !verse.text) return null;
 
@@ -66,7 +57,7 @@ export default function BibleChapterScreen() {
   // ✅ Initialize with route version if available, otherwise default to 'kjv'
   const [selectedVersion, setSelectedVersion] = useState(routeVersion || 'kjv');
   const [error, setError] = useState<string | null>(null);
-  const [availableVersions, setAvailableVersions] = useState<{ id: string; abbreviation: string; name: string; source: string }[]>([]);
+  const [availableVersions, setAvailableVersions] = useState<{ id: string; abbreviation: string; name: string; available: boolean }[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
   const scrollViewRef = useRef<ScrollView>(null);
@@ -94,9 +85,7 @@ export default function BibleChapterScreen() {
   const loadAvailableVersions = async () => {
     try {
       const versions = await scriptureService.getAvailableVersions();
-      if (versions && versions.length > 0) {
-        setAvailableVersions(versions);
-      }
+      setAvailableVersions(versions.filter((v) => v.available));
     } catch (error) {
       console.error('Failed to load versions:', error);
     }
@@ -125,7 +114,7 @@ export default function BibleChapterScreen() {
         setError(null);
       } else {
         setVerses([]);
-        const versionName = VERSIONS.find(v => v.value === selectedVersion)?.label || selectedVersion.toUpperCase();
+        const versionName = availableVersions.find(v => v.id === selectedVersion)?.abbreviation || selectedVersion.toUpperCase();
         setError(`No verses found for ${versionName}. This version may not have this book available.`);
       }
     } catch (error) {
@@ -184,9 +173,8 @@ export default function BibleChapterScreen() {
   };
 
   // Get current version info
-  const currentVersion = VERSIONS.find(v => v.value === selectedVersion);
-  const versionLabel = currentVersion?.label || selectedVersion.toUpperCase();
-  const versionSource = currentVersion?.source || 'local';
+  const currentVersion = availableVersions.find(v => v.id === selectedVersion);
+  const versionLabel = currentVersion?.abbreviation || selectedVersion.toUpperCase();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -207,14 +195,6 @@ export default function BibleChapterScreen() {
             <Text style={styles.chapterNumber}>
               Chapter {chapter} • {versionLabel}
             </Text>
-            <View style={[
-              styles.sourceBadge, 
-              versionSource === 'local' ? styles.sourceBadgeLocal : styles.sourceBadgeApi
-            ]}>
-              <Text style={styles.sourceBadgeText}>
-                {versionSource === 'local' ? 'OFFLINE' : 'ONLINE'}
-              </Text>
-            </View>
           </View>
         </View>
 
@@ -237,28 +217,28 @@ export default function BibleChapterScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.versionTabsContent}
         >
-          {VERSIONS.map((v) => {
-            const isActive = selectedVersion === v.value;
+          {availableVersions.length > 0 ? availableVersions.map((v) => {
+            const isActive = selectedVersion === v.id;
             return (
               <TouchableOpacity
-                key={v.value}
+                key={v.id}
                 style={styles.versionTab}
-                onPress={() => handleVersionChange(v.value)}
+                onPress={() => handleVersionChange(v.id)}
                 activeOpacity={0.7}
               >
                 <View style={styles.versionTabContent}>
                   <Text style={[styles.versionTabText, isActive && styles.versionTabTextActive]}>
-                    {v.label}
+                    {v.abbreviation}
                   </Text>
-                  <View style={[
-                    styles.versionSourceDot,
-                    { backgroundColor: v.source === 'local' ? '#10b981' : '#f59e0b' }
-                  ]} />
                 </View>
                 {isActive && <View style={styles.activeIndicator} />}
               </TouchableOpacity>
             );
-          })}
+          }) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+              <Text style={{ fontSize: 13, color: '#94a3b8' }}>Loading versions…</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
 
@@ -417,23 +397,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
   },
-  sourceBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  sourceBadgeLocal: {
-    backgroundColor: '#d1fae5',
-  },
-  sourceBadgeApi: {
-    backgroundColor: '#fef3c7',
-  },
-  sourceBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#374151',
-    letterSpacing: 0.5,
-  },
   headerActions: {
     flexDirection: 'row',
     gap: 8,
@@ -468,11 +431,6 @@ const styles = StyleSheet.create({
   versionTabTextActive: {
     color: '#1e40af',
     fontWeight: '700',
-  },
-  versionSourceDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   activeIndicator: {
     position: 'absolute',

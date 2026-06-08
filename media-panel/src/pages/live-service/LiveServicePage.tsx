@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Star, Edit3, ChevronUp, ChevronDown, Trash2, GripVertical, Zap, Play, Square, Send, Lock, BookOpen } from 'lucide-react'
 import type { Role, QueueItem, Scripture, ActivityItem } from '../../types/media.types'
 import type { ScriptureReference } from '../../types/scripture.types'
-import { SCRIPTURES_DB, ACTIVITY_FEED } from '../../utils/media-data'
+import { ACTIVITY_FEED } from '../../utils/media-data'
 import { LiveDot } from '../../components/ui/LiveDot'
 import { RoleBadge } from '../../components/ui/RoleBadge'
 import { useScriptureSearch } from '../../hooks/useScriptureSearch'
@@ -10,7 +10,7 @@ import { useScriptureStore } from '../../store/scripture.store'
 import { useAuthStore } from '../../store/auth.store'
 import { socketService } from '../../services/socket'
 import { sermonService } from '../../services/sermon.service'
-import { scriptureService } from '../../services/scripture.service'
+import { scriptureService, type BibleVersion } from '../../services/scripture.service'
 import { useServiceStore } from '../../store/service.store'
 
 interface LiveServicePageProps {
@@ -37,7 +37,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
   const [activity, setActivity] = useState<ActivityItem[]>(ACTIVITY_FEED)
   const [broadcastFlash, setBroadcastFlash] = useState(false)
   const [announcementText, setAnnouncementText] = useState('')
-  const { broadcastScripture, selectedVersion, setSelectedVersion } = useScriptureStore()
+  const { broadcastScripture, selectedVersion, setSelectedVersion, availableVersions, setAvailableVersions } = useScriptureStore()
   const [sermons, setSermons] = useState<Sermon[]>([])
   const [selectedSermonId, setSelectedSermonId] = useState<string | null>(null)
   const [loadingSermons, setLoadingSermons] = useState(true)
@@ -69,26 +69,43 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
     fetchSermons()
   }, [])
 
+  // Fetch available versions on mount
+  useEffect(() => {
+    scriptureService.getVersions()
+      .then((all) => {
+        const available = all.filter((v) => v.available)
+        setAvailableVersions(available)
+      })
+      .catch((err) => console.warn('[LiveService] Failed to load versions:', err))
+  }, [])
+
   // Re-fetch and re-broadcast active scripture whenever version changes
   useEffect(() => {
-    if (!activeItem || !liveActive) return
+    if (queue.length === 0) return
 
-    const refetch = async () => {
-      const results = await scriptureService.search(activeItem.ref, selectedVersion)
-      const match = results.find(r => r.reference === activeItem.ref) ?? results[0]
-      if (!match) return
+    const refetchAll = async () => {
+      const updated = await Promise.all(
+        queue.map(async (item) => {
+          try {
+            const results = await scriptureService.getByReference(item.ref, selectedVersion)
+            const match = results[0]
+            if (!match) return item
+            return { ...item, text: match.text, version: match.version ?? selectedVersion.toUpperCase() }
+          } catch {
+            return item // keep original if fetch fails for this item
+          }
+        })
+      )
+      setQueue(updated)
 
-      // Update the queue item text to the new version
-      setQueue(prev => prev.map(q =>
-        q.id === activeItem.id
-          ? { ...q, text: match.text, version: match.version ?? selectedVersion }
-          : q
-      ))
-
-      broadcastScripture(activeItem.ref, match.text, match.version ?? selectedVersion)
+      // Re-broadcast the active item in the new version if service is live
+      if (liveActive && updated[activeIndex]) {
+        const active = updated[activeIndex]
+        broadcastScripture(active.ref, active.text, active.version ?? selectedVersion)
+      }
     }
 
-    refetch()
+    refetchAll()
   }, [selectedVersion])
 
   // Load sermon scriptures into queue when a sermon is selected
@@ -138,35 +155,10 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
               version: searchResults[0].version,
             })
           } else {
-            // Fallback to local SCRIPTURES_DB
-            const foundScripture = SCRIPTURES_DB.find(
-              (s) => s.ref.toLowerCase().replace(/[–—]/g, '-') === ref.toLowerCase().replace(/[–—]/g, '-')
-            )
-            if (foundScripture) {
-              queueItems.push({
-                id: `${sermon.id}-${foundScripture.ref}`,
-                ref: foundScripture.ref,
-                text: foundScripture.text,
-                version: selectedVersion,
-              })
-            } else {
-              console.warn('[LiveService] No match found for:', ref)
-            }
+            console.warn('[LiveService] No match found for:', ref)
           }
         } catch (err) {
           console.warn(`[LiveService] Search failed for "${ref}":`, err)
-          // Fallback to local DB
-          const foundScripture = SCRIPTURES_DB.find(
-            (s) => s.ref.toLowerCase().replace(/[–—]/g, '-') === ref.toLowerCase().replace(/[–—]/g, '-')
-          )
-          if (foundScripture) {
-            queueItems.push({
-              id: `${sermon.id}-${foundScripture.ref}`,
-              ref: foundScripture.ref,
-              text: foundScripture.text,
-              version: selectedVersion,
-            })
-          }
         }
       }
 
@@ -453,20 +445,24 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
           <div className="mx-6 mt-4">
             {/* Version Toggle Bar */}
             <div className="flex gap-2 mb-3">
-              {(['kjv', 'nkjv', 'web', 'amp', 'neno'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setSelectedVersion(v)}
-                  className={`rounded-2xl px-3 py-1.5 text-xs font-mono font-semibold transition ${
-                    selectedVersion === v
-                      ? 'bg-blue-600 text-white border border-blue-500/30'
-                      : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  {v.toUpperCase()}
-                </button>
-              ))}
+              {availableVersions.length > 0 ? (
+                availableVersions.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelectedVersion(v.id as BibleVersion)}
+                    className={`rounded-2xl px-3 py-1.5 text-xs font-mono font-semibold transition ${
+                      selectedVersion === v.id
+                        ? 'bg-blue-600 text-white border border-blue-500/30'
+                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {v.abbreviation}
+                  </button>
+                ))
+              ) : (
+                <span className="text-xs font-mono text-slate-500">Loading versions…</span>
+              )}
             </div>
 
             <div className="relative">
@@ -498,19 +494,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
               </div>
             ) : (
               <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Favorites</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {SCRIPTURES_DB.filter((scripture) => scripture.favorite).map((scripture) => (
-                    <button
-                      key={scripture.id}
-                      type="button"
-                      onClick={() => addToQueue(scripture)}
-                      className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/15"
-                    >
-                      {scripture.ref}
-                    </button>
-                  ))}
-                </div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Start typing to search scriptures</p>
               </div>
             )}
           </div>

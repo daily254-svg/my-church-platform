@@ -1,47 +1,43 @@
 import { useState, useEffect } from 'react'
 import { useScriptureStore } from '../store/scripture.store'
 import { scriptureService } from '../services/scripture.service'
-import { SCRIPTURES_DB } from '../utils/media-data'
 import type { Scripture } from '../types/media.types'
 
 export function useScriptureSearch() {
-  const query = useScriptureStore((state) => state.query)
-  const setQuery = useScriptureStore((state) => state.setQuery)
+  const query          = useScriptureStore((state) => state.query)
+  const setQuery       = useScriptureStore((state) => state.setQuery)
   const selectedVersion = useScriptureStore((state) => state.selectedVersion)
-  const [results, setResults] = useState<Scripture[]>([])
-  const [loading, setLoading] = useState(false)
+
+  const [results, setResults]  = useState<Scripture[]>([])
+  const [loading, setLoading]  = useState(false)
+  const [error, setError]      = useState<string | null>(null)
 
   useEffect(() => {
-    // Clear results if query too short
     if (query.length < 2) {
       setResults([])
+      setError(null)
       return
     }
 
-    // Debounce — wait 300ms after user stops typing
     const timer = setTimeout(async () => {
       setLoading(true)
+      setError(null)
       try {
         const apiResults = await scriptureService.search(query, selectedVersion)
 
-        // Map ScriptureResult → Scripture shape the UI expects
         const mapped: Scripture[] = apiResults.map((r) => ({
-          id: r.reference,           // use reference as unique id
-          ref: r.reference,          // "Genesis 1:1"
-          version: r.version,
-          text: r.text,
-          favorite: SCRIPTURES_DB.some((s) => s.ref === r.reference && s.favorite),
+          id:       r.reference,
+          ref:      r.reference,
+          version:  r.version,
+          text:     r.text,
+          favorite: false,
         }))
 
         setResults(mapped)
       } catch (err) {
         console.error('[useScriptureSearch] Search failed:', err)
-        // Fall back to local SCRIPTURES_DB on error
-        const search = query.toLowerCase()
-        const fallback = SCRIPTURES_DB
-          .filter((s) => s.ref.toLowerCase().includes(search) || s.text.toLowerCase().includes(search))
-          .slice(0, 5)
-        setResults(fallback)
+        setError(err instanceof Error ? err.message : 'Search failed')
+        setResults([])
       } finally {
         setLoading(false)
       }
@@ -53,7 +49,8 @@ export function useScriptureSearch() {
   const clearSearch = () => {
     setQuery('')
     setResults([])
+    setError(null)
   }
 
-  return { query, setQuery, results, loading, clearSearch }
+  return { query, setQuery, results, loading, error, clearSearch }
 }

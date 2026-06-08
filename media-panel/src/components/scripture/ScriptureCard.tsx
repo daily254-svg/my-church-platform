@@ -1,8 +1,8 @@
 import type { ScriptureResult } from '../../services/scripture.service'
 
 interface ScriptureCardProps {
-  scripture: ScriptureResult
-  onRemove?: () => void
+  scripture:    ScriptureResult
+  onRemove?:    () => void
   onBroadcast?: () => void
 }
 
@@ -11,24 +11,21 @@ export default function ScriptureCard({ scripture, onRemove, onBroadcast }: Scri
     <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition">
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h4 className="font-semibold text-blue-600">
-            {scripture.reference}
-          </h4>
-          <p className="text-xs text-gray-500">
-            {scripture.version ?? (scripture.source === 'local' ? 'Local' : 'API Bible')}
-          </p>
+          <h4 className="font-semibold text-blue-600">{scripture.reference}</h4>
+          <span className="text-xs font-mono text-gray-400">
+            {scripture.version ?? 'Unknown'}
+          </span>
         </div>
         <button
           onClick={onRemove}
-          className="text-gray-400 hover:text-red-600 text-lg"
+          className="text-gray-400 hover:text-red-600 text-lg leading-none"
+          aria-label="Remove"
         >
           ×
         </button>
       </div>
 
-      <p className="text-sm text-gray-700 mb-3 line-clamp-3">
-        {scripture.text}
-      </p>
+      <p className="text-sm text-gray-700 mb-3 line-clamp-3">{scripture.text}</p>
 
       <div className="flex gap-2">
         <button

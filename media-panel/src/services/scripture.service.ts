@@ -1,6 +1,15 @@
 import { API_URL } from '../utils/constants'
+import type { BibleVersionMeta } from '../types/scripture.types'
 
-export type BibleVersion = 'kjv' | 'nkjv' | 'web' | 'amp' | 'neno' | 'api-bible'
+export type BibleVersion =
+  | 'kjv'
+  | 'nkjv'
+  | 'amp'
+  | 'niv'
+  | 'esv'
+  | 'nlt'
+  | 'nasb1995'
+  | 'csb'
 
 export interface ScriptureResult {
   reference: string
@@ -8,68 +17,102 @@ export interface ScriptureResult {
   book?: string
   chapter?: number
   verse?: number
-  source: 'local' | 'api-bible'
-  version?: string
+  version: string
+  source: 'local'
 }
 
 export const scriptureService = {
   /**
-   * Search for scriptures
+   * Fetch all versions and their availability from the backend
    */
-  search: async (query: string, version: BibleVersion = 'kjv'): Promise<ScriptureResult[]> => {
-    const response = await fetch(`${API_URL}/scripture/search?query=${encodeURIComponent(query)}&version=${version}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  getVersions: async (): Promise<BibleVersionMeta[]> => {
+    const response = await fetch(`${API_URL}/scripture/versions`, {
+      headers: { 'Content-Type': 'application/json' },
     })
-
     const json = await response.json()
+    if (!json.success) throw new Error(json.error || 'Failed to fetch versions')
+    return json.versions as BibleVersionMeta[]
+  },
 
-    if (!json.success) {
-      throw new Error(json.error || 'Failed to search scriptures')
-    }
-
+  /**
+   * Search scriptures by keyword or reference
+   */
+  search: async (
+    query: string,
+    version: BibleVersion = 'kjv',
+    limit = 20
+  ): Promise<ScriptureResult[]> => {
+    const params = new URLSearchParams({
+      query,
+      version,
+      limit: String(limit),
+    })
+    const response = await fetch(`${API_URL}/scripture/search?${params}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const json = await response.json()
+    if (!json.success) throw new Error(json.error || 'Failed to search scriptures')
     return json.results || []
   },
 
   /**
    * Get a specific scripture by reference
    */
-  getByReference: async (reference: string, version: BibleVersion = 'kjv'): Promise<ScriptureResult[]> => {
-    const response = await fetch(`${API_URL}/scripture/get?reference=${encodeURIComponent(reference)}&version=${version}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  getByReference: async (
+    reference: string,
+    version: BibleVersion = 'kjv'
+  ): Promise<ScriptureResult[]> => {
+    const params = new URLSearchParams({ reference, version })
+    const response = await fetch(`${API_URL}/scripture/get?${params}`, {
+      headers: { 'Content-Type': 'application/json' },
     })
-
     const json = await response.json()
-
-    if (!json.success) {
-      throw new Error(json.error || 'Failed to fetch scripture')
-    }
-
+    if (!json.success) throw new Error(json.error || 'Failed to fetch scripture')
     return json.results || []
   },
 
   /**
-   * Get all Bible books
+   * Compare a reference across all loaded versions
    */
-  getBooks: async () => {
-    const response = await fetch(`${API_URL}/scripture/books`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  compareVersions: async (
+    reference: string
+  ): Promise<{ reference: string; versions: { version: string; text: string }[] } | null> => {
+    const params = new URLSearchParams({ reference })
+    const response = await fetch(`${API_URL}/scripture/compare?${params}`, {
+      headers: { 'Content-Type': 'application/json' },
     })
-
     const json = await response.json()
+    if (!json.success) return null
+    return { reference: json.reference, versions: json.versions }
+  },
 
-    if (!json.success) {
-      throw new Error(json.error || 'Failed to fetch books')
-    }
-
+  /**
+   * Get all Bible books for a version
+   */
+  getBooks: async (version: BibleVersion = 'kjv') => {
+    const params = new URLSearchParams({ version })
+    const response = await fetch(`${API_URL}/scripture/books?${params}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const json = await response.json()
+    if (!json.success) throw new Error(json.error || 'Failed to fetch books')
     return json.books || []
+  },
+
+  /**
+   * Get verse count for a chapter
+   */
+  getVerseCount: async (
+    book: string,
+    chapter: number,
+    version: BibleVersion = 'kjv'
+  ): Promise<number | null> => {
+    const params = new URLSearchParams({ book, chapter: String(chapter), version })
+    const response = await fetch(`${API_URL}/scripture/verse-count?${params}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const json = await response.json()
+    if (!json.success) return null
+    return json.verseCount
   },
 }

@@ -1,5 +1,4 @@
-import { localBibleService } from "./local-bible.service";
-import { apiBibleService } from "./api-bible.service";
+import { localBibleService, ScriptureVerse } from "./local-bible.service";
 
 export interface ScriptureResult {
   reference: string;
@@ -7,226 +6,135 @@ export interface ScriptureResult {
   book?: string;
   chapter?: number;
   verse?: number;
-  version?: string;
-  source: "local" | "api-bible";
+  version: string;
+  source: "local";
 }
 
-// Versions served from local JSON files
-const LOCAL_VERSIONS = new Set(["kjv", "nkjv", "web"]);
+// All versions served from local JSON files
+const LOCAL_VERSIONS = new Set(["kjv", "nkjv", "amp", "niv", "esv", "nlt", "nasb1995", "csb"]);
 
 class ScriptureService {
-  private currentVersion: string = "kjv";
+  private defaultVersion: string = "kjv";
 
-  /**
-   * Set the default Bible version for queries
-   */
-  setDefaultVersion(version: string): boolean {
-    const lowerVersion = version.toLowerCase();
-    if (LOCAL_VERSIONS.has(lowerVersion)) {
-      this.currentVersion = lowerVersion;
-      return true;
-    }
-    return false;
-  }
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /**
-   * Get the current default Bible version
-   */
-  getDefaultVersion(): string {
-    return this.currentVersion;
-  }
-
-  /**
-   * Get available Bible versions
-   */
-  getAvailableVersions(): string[] {
-    return localBibleService.getLoadedVersions();
-  }
-
-  /**
-   * Normalize version string
-   */
-  private normalizeVersion(version: string): string {
+  private normalize(version: string): string {
     return version.toLowerCase();
   }
 
+  private resolveVersion(version?: string): string {
+    return version ? this.normalize(version) : this.defaultVersion;
+  }
+
+  private toResult(v: ScriptureVerse, version: string): ScriptureResult {
+    return {
+      reference: v.reference,
+      text:      v.text,
+      book:      v.book,
+      chapter:   v.chapter,
+      verse:     v.verse,
+      version:   version.toUpperCase(),
+      source:    "local",
+    };
+  }
+
+  /** Returns true if the query looks like a Bible reference ("John 3:16", "Rom 8 1") */
   private looksLikeReference(query: string): boolean {
     return /^[\w\s]+\s+\d+[\s:]\d+/.test(query.trim());
   }
 
-  async getScripture(
-    reference: string,
-    preferredSource: "local" | "api-bible" | "any" = "any",
-    version?: string
-  ): Promise<ScriptureResult[]> {
-    const useVersion = version ? this.normalizeVersion(version) : this.currentVersion;
-    const useLocal = LOCAL_VERSIONS.has(useVersion);
+  // ── Public API ────────────────────────────────────────────────────────────
 
-    // Local path
-    if (useLocal && preferredSource !== "api-bible") {
-      const localResult = localBibleService.getScripture(reference, useVersion);
-      if (localResult && localResult.length > 0) {
-        return localResult.map((v) => ({
-          reference: v.reference,
-          text: v.text,
-          book: v.book,
-          chapter: v.chapter,
-          verse: v.verse,
-          version: useVersion.toUpperCase(),
-          source: "local" as const,
-        }));
-      }
+  getAvailableVersions(): string[] {
+    return localBibleService.getLoadedVersions();
+  }
+
+  getDefaultVersion(): string {
+    return this.defaultVersion;
+  }
+
+  setDefaultVersion(version: string): boolean {
+    const v = this.normalize(version);
+    if (!LOCAL_VERSIONS.has(v)) return false;
+    this.defaultVersion = v;
+    return true;
+  }
+
+  async getScripture(reference: string, version?: string): Promise<ScriptureResult[]> {
+    const v = this.resolveVersion(version);
+
+    if (!localBibleService.isLoaded(v)) {
+      console.warn(`[Scripture] Version not loaded: ${v}`);
+      return [];
     }
 
-    // api.bible path
-    if (!useLocal || preferredSource === "api-bible" || preferredSource === "any") {
-      try {
-        const result = await apiBibleService.getScripture(reference);
-        if (result) {
-          return [{
-            reference: result.reference,
-            text: result.text,
-            version: "API",
-            source: "api-bible",
-          }];
-        }
-      } catch (error) {
-        console.error("[Scripture] api.bible lookup failed:", error);
-      }
-    }
+    const results = localBibleService.getScripture(reference, v);
+    if (!results || results.length === 0) return [];
 
-    return [];
+    return results.map((r) => this.toResult(r, v));
   }
 
   async searchScriptures(
-    query: string,
-    preferredSource: "local" | "api-bible" | "any" = "any",
-    limit: number = 20,
+    query:   string,
+    limit:   number = 20,
     version?: string
   ): Promise<ScriptureResult[]> {
-    const useVersion = version ? this.normalizeVersion(version) : this.currentVersion;
-    const useLocal = LOCAL_VERSIONS.has(useVersion);
+    const v = this.resolveVersion(version);
 
-    console.log(`[DEBUG] searchScriptures called: query="${query}", source="${preferredSource}", version="${useVersion}"`);
+    if (!localBibleService.isLoaded(v)) {
+      console.warn(`[Scripture] Version not loaded: ${v}`);
+      return [];
+    }
 
-    // Reference detection
+    // Route reference-like queries to getScripture for exact lookup
     if (this.looksLikeReference(query)) {
-      console.log(`[Scripture] Query looks like a reference, routing to getScripture`);
       const normalized = query.trim().replace(/^([\w\s]+?)\s+(\d+)\s+(\d+)$/, "$1 $2:$3");
-      const refResults = await this.getScripture(normalized, preferredSource, useVersion);
+      const refResults = await this.getScripture(normalized, v);
       if (refResults.length > 0) return refResults;
-      console.log(`[Scripture] Reference lookup failed, falling back to keyword search`);
+      // Fall through to keyword search if reference lookup fails
     }
 
-    // Local path
-    if (useLocal && (preferredSource === "local" || preferredSource === "any")) {
-      const localResults = localBibleService.searchScriptures(query, limit, useVersion);
-      console.log(`[Scripture] Local results count: ${localResults.length}`);
-      
-      if (localResults.length > 0 || preferredSource === "local") {
-        return localResults.map((v) => ({
-          reference: v.reference,
-          text: v.text,
-          book: v.book,
-          chapter: v.chapter,
-          verse: v.verse,
-          version: useVersion.toUpperCase(),
-          source: "local" as const,
-        }));
-      }
-    }
-
-    // api.bible path
-    if (!useLocal || preferredSource === "api-bible" || preferredSource === "any") {
-      console.log("[Scripture] Trying api.bible...");
-      try {
-        const result = await apiBibleService.searchScriptures(query, limit);
-        if (result && result.passages.length > 0) {
-          return result.passages.slice(0, limit).map((p) => ({
-            reference: p.reference,
-            text: p.text,
-            version: "API",
-            source: "api-bible" as const,
-          }));
-        }
-      } catch (error) {
-        console.error("[Scripture] api.bible search failed:", error);
-      }
-
-      // api-bible was explicitly chosen but failed — fall back to local gracefully
-      if (preferredSource === "api-bible") {
-        const fallback = localBibleService.searchScriptures(query, limit, useVersion);
-        return fallback.map((v) => ({
-          reference: v.reference,
-          text: v.text,
-          book: v.book,
-          chapter: v.chapter,
-          verse: v.verse,
-          version: useVersion.toUpperCase(),
-          source: "local" as const,
-        }));
-      }
-    }
-
-    console.log("[Scripture] No results found, returning empty array");
-    return [];
+    const results = localBibleService.searchScriptures(query, limit, v);
+    return results.map((r) => this.toResult(r, v));
   }
 
-  /**
-   * Compare a scripture reference across all available local versions
-   */
   async compareVersions(reference: string): Promise<{
     reference: string;
-    versions: { version: string; text: string; source: "local" | "api-bible" }[];
+    versions: { version: string; text: string; source: "local" }[];
   } | null> {
-    const loadedVersions = localBibleService.getLoadedVersions();
-    
-    if (loadedVersions.length === 0) return null;
+    const loaded = localBibleService.getLoadedVersions();
+    if (loaded.length === 0) return null;
 
-    const versions = loadedVersions
-      .map(version => {
-        const result = localBibleService.getScripture(reference, version);
+    const versions = loaded
+      .map((v) => {
+        const result = localBibleService.getScripture(reference, v);
         return {
-          version: version.toUpperCase(),
-          text: result && result.length > 0 ? result[0].text : null,
-          source: "local" as const,
+          version: v.toUpperCase(),
+          text:    result?.[0]?.text ?? null,
+          source:  "local" as const,
         };
       })
-      .filter(v => v.text !== null)
-      .map(v => ({
-        version: v.version,
-        text: v.text!,
-        source: v.source,
-      }));
+      .filter((v): v is { version: string; text: string; source: "local" } => v.text !== null);
 
     return versions.length > 0 ? { reference, versions } : null;
   }
 
   getBooks(version?: string): { name: string; abbrev: string; chapters: number }[] {
-    const useVersion = version ? this.normalizeVersion(version) : this.currentVersion;
-    return localBibleService.getBooks(useVersion);
+    return localBibleService.getBooks(this.resolveVersion(version));
   }
 
   getBook(bookName: string, version?: string): { name: string; abbrev: string; chapters: number } | null {
-    const useVersion = version ? this.normalizeVersion(version) : this.currentVersion;
-    return localBibleService.getBook(bookName, useVersion);
+    return localBibleService.getBook(bookName, this.resolveVersion(version));
   }
 
   getChapterVerseCount(bookName: string, chapter: number, version?: string): number | null {
-    const useVersion = version ? this.normalizeVersion(version) : this.currentVersion;
-    return localBibleService.getChapterVerseCount(bookName, chapter, useVersion);
+    return localBibleService.getChapterVerseCount(bookName, chapter, this.resolveVersion(version));
   }
 
   async initialize(): Promise<void> {
-    try {
-      // Load all available versions
-      await localBibleService.initializeAll();
-      const versions = this.getAvailableVersions();
-      console.log(`[Scripture] Initialized with versions: ${versions.join(", ")}`);
-    } catch (error) {
-      console.error("[Scripture] Failed to initialize service:", error);
-      throw error;
-    }
+    await localBibleService.initializeAll();
+    const loaded = this.getAvailableVersions();
+    console.log(`[Scripture] Service ready — versions: ${loaded.join(", ") || "none"}`);
   }
 }
 

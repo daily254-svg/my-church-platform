@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,14 @@ export default function BibleSearchScreen() {
   const [results, setResults] = useState<ScriptureResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState('kjv');
+  const [availableVersions, setAvailableVersions] = useState<{ id: string; abbreviation: string; available: boolean }[]>([]);
+
+  useEffect(() => {
+    scriptureService.getAvailableVersions()
+      .then((versions) => setAvailableVersions(versions.filter(v => v.available)))
+      .catch(() => {});
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -44,7 +52,7 @@ export default function BibleSearchScreen() {
     try {
       setLoading(true);
       setSearched(true);
-      const searchResults = await scriptureService.searchScriptures(searchQuery);
+      const searchResults = await scriptureService.searchScriptures(searchQuery, selectedVersion);
       setResults(searchResults);
     } catch (error) {
       console.error('Error searching:', error);
@@ -52,7 +60,7 @@ export default function BibleSearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, selectedVersion]);
 
   const handleResultPress = (result: ScriptureResult) => {
     // Parse the reference to get book and chapter if available
@@ -67,6 +75,11 @@ export default function BibleSearchScreen() {
     <TouchableOpacity style={styles.resultItem} onPress={() => handleResultPress(result)}>
       <View>
         <Text style={styles.resultReference}>{result.reference}</Text>
+        {result.version && (
+          <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+            {result.version}
+          </Text>
+        )}
         <Text style={styles.resultText} numberOfLines={2}>
           {result.text}
         </Text>
@@ -108,6 +121,37 @@ export default function BibleSearchScreen() {
       >
         <Text style={styles.searchButtonText}>Search</Text>
       </TouchableOpacity>
+
+      {/* Version Selector */}
+      {availableVersions.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ paddingHorizontal: 16, marginBottom: 8 }}
+          contentContainerStyle={{ gap: 8, paddingVertical: 6 }}
+        >
+          {availableVersions.map((v) => (
+            <TouchableOpacity
+              key={v.id}
+              onPress={() => setSelectedVersion(v.id)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: selectedVersion === v.id ? '#1e40af' : '#f3f4f6',
+              }}
+            >
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: selectedVersion === v.id ? '#fff' : '#374151',
+              }}>
+                {v.abbreviation}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Results */}
       <ScrollView style={styles.resultsContainer} showsVerticalScrollIndicator={false}>
