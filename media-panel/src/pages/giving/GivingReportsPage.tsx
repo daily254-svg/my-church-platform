@@ -3,7 +3,7 @@ import { Download, Lock } from 'lucide-react'
 import type { Role } from '../../types/media.types'
 import type { GivingRecord, GivingRecordType } from '../../types/giving.types'
 import { givingService } from '../../services/giving.service'
-import { formatCurrencyNaira, formatDate } from '../../utils/formatters'
+import { formatCurrencyKsh, formatDate } from '../../utils/formatters'
 
 interface GivingReportsPageProps {
   role: Role
@@ -137,18 +137,18 @@ export default function GivingReportsPage({ role }: GivingReportsPageProps) {
         {[
           {
             label: 'Total Received',
-            value: formatCurrencyNaira(summary?.total ?? 0),
-            sub: `${summary?.count ?? 0} submissions`,
+            value: formatCurrencyKsh(summary?.total ?? 0),
+            sub: `Ksh ${summary?.count ?? 0} submissions`,
           },
           {
             label: 'Tithes',
-            value: formatCurrencyNaira(summary?.titheTotal ?? 0),
-            sub: `${summary?.titheCount ?? 0} members`,
+            value: formatCurrencyKsh(summary?.titheTotal ?? 0),
+            sub: `Ksh ${summary?.titheCount ?? 0} members`,
           },
           {
             label: 'Offerings & Special',
-            value: formatCurrencyNaira(summary?.offeringTotal ?? 0),
-            sub: `${summary?.offeringCount ?? 0} submissions`,
+            value: formatCurrencyKsh(summary?.offeringTotal ?? 0),
+            sub: `Ksh ${summary?.offeringCount ?? 0} submissions`,
           },
         ].map((stat) => (
           <div key={stat.label} className="rounded-3xl border border-white/10 bg-white/5 p-5">
@@ -205,7 +205,7 @@ export default function GivingReportsPage({ role }: GivingReportsPageProps) {
                     <span className="text-white">{record.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 font-mono text-white">{formatCurrencyNaira(record.amount)}</td>
+                <td className="px-4 py-4 font-mono text-white">{formatCurrencyKsh(record.amount)}</td>
                 <td className="px-4 py-4">
                   <span className={`rounded-2xl border px-2 py-1 text-xs font-semibold uppercase ${typeColors[record.type]}`}>{record.type}</span>
                 </td>
@@ -218,7 +218,7 @@ export default function GivingReportsPage({ role }: GivingReportsPageProps) {
         </table>
         <div className="flex items-center justify-between gap-4 border-t border-white/10 px-4 py-4 bg-slate-950/70">
           <span className="text-xs text-slate-500">{filtered.length} records</span>
-          <span className="text-sm font-semibold text-white">Total: {formatCurrencyNaira(total)}</span>
+          <span className="text-sm font-semibold text-white">Total: {formatCurrencyKsh(total)}</span>
         </div>
       </div>
     </div>

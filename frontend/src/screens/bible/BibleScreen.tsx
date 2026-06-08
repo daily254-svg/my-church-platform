@@ -94,7 +94,6 @@ export default function BibleScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.title}>Holy Bible</Text>
-          <Text style={styles.subtitle}>King James Version</Text>
         </View>
         <View style={styles.headerDecoration}>
           <View style={styles.cross} />

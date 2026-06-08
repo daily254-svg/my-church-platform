@@ -7,6 +7,7 @@ export interface FeedPost {
   body: string;
   imageUrl?: string;
   likesCount: number;
+  isLiked: boolean;
   commentsCount: number;
   createdAt: string;
   user: {

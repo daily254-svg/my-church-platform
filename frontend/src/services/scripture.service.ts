@@ -7,6 +7,7 @@ export interface ScriptureResult {
   book?: string;
   chapter?: number;
   verse?: number;
+  version?: string;
   source: "local" | "api-bible";
 }
 
@@ -21,33 +22,58 @@ const TOKEN_KEY = "auth_token";
 
 class ScriptureService {
   /**
+   * Get available Bible versions from the server
+   */
+  async getAvailableVersions(): Promise<{ id: string; abbreviation: string; name: string; source: string }[]> {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const response = await fetch(`${API_URL}/scripture/versions`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await response.json();
+      return data.versions || [];
+    } catch (error) {
+      // Fallback to local versions if request fails
+      return [
+        { id: 'kjv',  abbreviation: 'KJV',  name: 'King James Version',      source: 'local' },
+        { id: 'nkjv', abbreviation: 'NKJV', name: 'New King James Version',   source: 'local' },
+        { id: 'web',  abbreviation: 'WEB',  name: 'World English Bible',      source: 'local' },
+      ];
+    }
+  }
+
+  /**
    * Get a scripture by reference (e.g., "John 3:16")
    */
   async getScripture(reference: string, version: string = 'kjv'): Promise<ScriptureResult[]> {
     try {
-        const token = await AsyncStorage.getItem(TOKEN_KEY);
-        const url = new URL(`${API_URL}/scripture/get`);
-        url.searchParams.append('reference', reference);
-        url.searchParams.append('version', version);
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const url = new URL(`${API_URL}/scripture/get`);
+      url.searchParams.append('reference', reference);
+      url.searchParams.append('version', version);
 
-        const response = await fetch(url.toString(), {
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        });
+      });
 
-        const data = await response.json();
-        
-        if (data.results && data.results.length > 0) {
-        }
-        
-        return data.results || [];
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+      }
+      
+      return data.results || [];
     } catch (error) {
-        return [];
+      return [];
     }
-    }
+  }
 
   /**
    * Search for scriptures by keyword
@@ -76,10 +102,58 @@ class ScriptureService {
   }
 
   /**
+   * Compare a scripture across all available local versions
+   */
+  async compareVersions(reference: string): Promise<{
+    reference: string;
+    versions: { version: string; text: string; source: string }[];
+  } | null> {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const url = new URL(`${API_URL}/scripture/compare`);
+      url.searchParams.append('reference', reference);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await response.json();
+      return data.success ? data : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
    * Get all books of the Bible
    */
-  async getBibleBooks(): Promise<string[]> {
-    // Standard books of the King James Version Bible in order
+  async getBibleBooks(version: string = 'kjv'): Promise<string[]> {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const url = new URL(`${API_URL}/scripture/books`);
+      url.searchParams.append('version', version);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await response.json();
+      
+      if (data.books && data.books.length > 0) {
+        return data.books.map((book: any) => book.name);
+      }
+    } catch (error) {
+    }
+    
+    // Fallback: Standard books of the King James Version Bible in order
     return [
       'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
       'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
@@ -100,8 +174,29 @@ class ScriptureService {
   /**
    * Get chapters for a specific book
    */
-  async getBookChapters(book: string): Promise<number[]> {
-    // Chapter counts for each book of the KJV Bible
+  async getBookChapters(book: string, version: string = 'kjv'): Promise<number[]> {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const url = new URL(`${API_URL}/scripture/books/${encodeURIComponent(book)}`);
+      url.searchParams.append('version', version);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await response.json();
+      
+      if (data.book && data.book.chapters) {
+        return Array.from({ length: data.book.chapters }, (_, i) => i + 1);
+      }
+    } catch (error) {
+    }
+    
+    // Fallback: Chapter counts for each book of the KJV Bible
     const chapterCounts: { [key: string]: number } = {
       'Genesis': 50, 'Exodus': 40, 'Leviticus': 27, 'Numbers': 36, 'Deuteronomy': 34,
       'Joshua': 24, 'Judges': 21, 'Ruth': 4, '1 Samuel': 31, '2 Samuel': 24,

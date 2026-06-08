@@ -8,16 +8,24 @@ import AnnouncementsPage from '../pages/announcements/AnnouncementsPage'
 import MonitoringPage from '../pages/monitoring/MonitoringPage'
 import GivingReportsPage from '../pages/giving/GivingReportsPage'
 
+import { useServiceStore } from '../store/service.store'
+import { useAuthStore } from '../store/auth.store'
+import type { Role } from '../types/media.types'
+
 function LoginRoute() {
   return <LoginPage onLogin={() => undefined} />
 }
 
 function DashboardRoute() {
-  return <DashboardPage role="Media" liveActive={false} setScreen={() => undefined} connectedCount={0} />
+  const { isLive, connectedCount } = useServiceStore()
+  const role = (useAuthStore.getState().user?.role as Role) ?? 'Media'
+  return <DashboardPage role={role} liveActive={isLive} setScreen={() => undefined} connectedCount={connectedCount} />
 }
 
 function LiveServiceRoute() {
-  return <LiveServicePage role="Media" liveActive={false} setLiveActive={() => undefined} />
+  const { isLive, setLive } = useServiceStore()
+  const role = (useAuthStore.getState().user?.role as Role) ?? 'Media'
+  return <LiveServicePage role={role} liveActive={isLive} setLiveActive={setLive} />
 }
 
 function SermonsRoute() {

@@ -15,7 +15,7 @@ export default function ScriptureCard({ scripture, onRemove, onBroadcast }: Scri
             {scripture.reference}
           </h4>
           <p className="text-xs text-gray-500">
-            {scripture.source === 'local' ? 'KJV Offline' : 'API Bible'}
+            {scripture.version ?? (scripture.source === 'local' ? 'Local' : 'API Bible')}
           </p>
         </div>
         <button
@@ -44,4 +44,3 @@ export default function ScriptureCard({ scripture, onRemove, onBroadcast }: Scri
     </div>
   )
 }
-

@@ -11,6 +11,7 @@ export type Screen =
 export type Role = 'Media' | 'Pastor' | 'Secretary' | 'Admin'
 
 export interface Scripture {
+  version?: string | undefined
   id: string
   ref: string
   text: string
@@ -21,6 +22,7 @@ export interface QueueItem {
   id: string
   ref: string
   text: string
+  version?: string
   active?: boolean
   broadcast?: boolean
 }

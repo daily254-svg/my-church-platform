@@ -18,6 +18,7 @@ interface ServiceState {
   syncHealth:     number
   deviceRegions:  DeviceRegion[]
   setLive:        (active: boolean) => void
+  setTitle:       (title: string) => void
   startListening: () => void
   stopListening:  () => void
 }
@@ -51,6 +52,8 @@ export const useServiceStore = create<ServiceState>((set, get) => ({
       set({ isLive: false, startedAt: null, syncHealth: 0 })
     }
   },
+
+  setTitle: (title: string) => set({ title }),
 
   startListening: () => {
     const socket = socketService.getSocket()

@@ -79,7 +79,7 @@ export default function GivingHistoryScreen() {
   }
 
   const formatAmount = (amount: number): string => {
-    return `$${amount.toLocaleString()}`;
+    return `Ksh ${amount.toLocaleString()}`;
   };
 
   return (

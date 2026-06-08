@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { socketService } from '../../services/socket'
 import { sermonService } from '../../services/sermon.service'
 import { scriptureService } from '../../services/scripture.service'
+import { useServiceStore } from '../../store/service.store'
 
 interface LiveServicePageProps {
   role: Role
@@ -36,10 +37,14 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
   const [activity, setActivity] = useState<ActivityItem[]>(ACTIVITY_FEED)
   const [broadcastFlash, setBroadcastFlash] = useState(false)
   const [announcementText, setAnnouncementText] = useState('')
-  const { broadcastScripture } = useScriptureStore()
+  const { broadcastScripture, selectedVersion, setSelectedVersion } = useScriptureStore()
   const [sermons, setSermons] = useState<Sermon[]>([])
   const [selectedSermonId, setSelectedSermonId] = useState<string | null>(null)
   const [loadingSermons, setLoadingSermons] = useState(true)
+
+  const activeItem = queue[activeIndex]
+
+  const { setTitle } = useServiceStore()
 
   // Reset active index when queue becomes empty
   useEffect(() => {
@@ -64,6 +69,28 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
     fetchSermons()
   }, [])
 
+  // Re-fetch and re-broadcast active scripture whenever version changes
+  useEffect(() => {
+    if (!activeItem || !liveActive) return
+
+    const refetch = async () => {
+      const results = await scriptureService.search(activeItem.ref, selectedVersion)
+      const match = results.find(r => r.reference === activeItem.ref) ?? results[0]
+      if (!match) return
+
+      // Update the queue item text to the new version
+      setQueue(prev => prev.map(q =>
+        q.id === activeItem.id
+          ? { ...q, text: match.text, version: match.version ?? selectedVersion }
+          : q
+      ))
+
+      broadcastScripture(activeItem.ref, match.text, match.version ?? selectedVersion)
+    }
+
+    refetch()
+  }, [selectedVersion])
+
   // Load sermon scriptures into queue when a sermon is selected
   const loadSermonScriptures = async (sermon: Sermon) => {
     
@@ -87,8 +114,8 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
       // Search for each scripture reference
       for (const ref of sermon.scriptureList) {
         try {
-          // Use the scripture service to search for the exact reference
-          const searchResults = await scriptureService.search(ref, 'kjv')
+          // Use the scripture service to search for the exact reference with selected version
+          const searchResults = await scriptureService.search(ref, selectedVersion)
           
           // Find exact match
           const exactMatch = searchResults.find(
@@ -100,6 +127,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
               id: `${sermon.id}-${exactMatch.reference}`,
               ref: exactMatch.reference,
               text: exactMatch.text,
+              version: exactMatch.version,
             })
           } else if (searchResults.length > 0) {
             // If no exact match, use the first result
@@ -107,6 +135,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
               id: `${sermon.id}-${searchResults[0].reference}`,
               ref: searchResults[0].reference,
               text: searchResults[0].text,
+              version: searchResults[0].version,
             })
           } else {
             // Fallback to local SCRIPTURES_DB
@@ -118,6 +147,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
                 id: `${sermon.id}-${foundScripture.ref}`,
                 ref: foundScripture.ref,
                 text: foundScripture.text,
+                version: selectedVersion,
               })
             } else {
               console.warn('[LiveService] No match found for:', ref)
@@ -134,6 +164,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
               id: `${sermon.id}-${foundScripture.ref}`,
               ref: foundScripture.ref,
               text: foundScripture.text,
+              version: selectedVersion,
             })
           }
         }
@@ -144,6 +175,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
         setQueue(queueItems)
         setActiveIndex(0)
         setSelectedSermonId(sermon.id)
+        setTitle(sermon.title)
         
         const newEntry: ActivityItem = {
           id: Date.now().toString(),
@@ -175,7 +207,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
     }
   }
 
-  const activeItem = queue[activeIndex]
+ 
 
   const parseScriptureReference = (reference: string): ScriptureReference | null => {
     const [book, chapterVerse] = reference.split(' ')
@@ -192,7 +224,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
   const broadcast = (item?: QueueItem) => {
     const target = item || activeItem
     if (!target) return
-    broadcastScripture(target.ref, target.text)
+    broadcastScripture(target.ref, target.text, target.version ?? selectedVersion)
     setBroadcastFlash(true)
     window.setTimeout(() => setBroadcastFlash(false), 600)
     const newEntry: ActivityItem = {
@@ -207,7 +239,7 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
 
   const addToQueue = (scripture: Scripture) => {
     if (queue.some((item) => item.ref === scripture.ref)) return
-    setQueue((prev) => [...prev, { id: Date.now().toString(), ref: scripture.ref, text: scripture.text }])
+    setQueue((prev) => [...prev, { id: Date.now().toString(), ref: scripture.ref, text: scripture.text, version: scripture.version ?? selectedVersion }])
     clearSearch()
   }
 
@@ -385,7 +417,14 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
                 Edit
               </button>
             </div>
-            <div className="text-sm font-semibold text-blue-300 mb-3">{activeItem?.ref || '—'}</div>
+            <div className="text-sm font-semibold text-blue-300 mb-3">
+              {activeItem?.ref || '—'}
+              {activeItem?.version && (
+                <span className="ml-2 text-xs font-mono text-slate-500">
+                  ({activeItem.version.toUpperCase()})
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mb-4">{activeReference ? `${activeReference.book} ${activeReference.chapter}:${activeReference.verse}` : 'No scripture selected yet.'}</p>
             <p className="text-base leading-relaxed text-slate-200">{activeItem?.text || 'No scripture selected. Add scriptures to the queue below.'}</p>
             <div className="mt-6 flex flex-wrap gap-3 border-t border-white/10 pt-4">
@@ -412,6 +451,24 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
           </div>
 
           <div className="mx-6 mt-4">
+            {/* Version Toggle Bar */}
+            <div className="flex gap-2 mb-3">
+              {(['kjv', 'nkjv', 'web', 'amp', 'neno'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setSelectedVersion(v)}
+                  className={`rounded-2xl px-3 py-1.5 text-xs font-mono font-semibold transition ${
+                    selectedVersion === v
+                      ? 'bg-blue-600 text-white border border-blue-500/30'
+                      : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {v.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
@@ -507,7 +564,10 @@ export default function LiveServicePage({ role, liveActive, setLiveActive }: Liv
                     <GripVertical className="w-4 h-4 text-slate-500" />
                     <div className="min-w-0">
                       <p className={`text-sm font-semibold ${index === activeIndex ? 'text-blue-300' : 'text-white'}`}>{item.ref}</p>
-                      {item.broadcast && <span className="text-xs text-emerald-300 font-mono">✓ sent</span>}
+                      <div className="flex items-center gap-2">
+                        {item.version && <span className="text-[10px] font-mono text-slate-500">{item.version.toUpperCase()}</span>}
+                        {item.broadcast && <span className="text-xs text-emerald-300 font-mono">✓ sent</span>}
+                      </div>
                     </div>
                     <div className="ml-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
                       <button type="button" onClick={(event) => { event.stopPropagation(); moveUp(index) }} className="rounded-full p-2 text-slate-400 hover:text-white">

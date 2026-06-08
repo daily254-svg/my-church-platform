@@ -36,7 +36,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await getAllPostsService();
+    const userId = (req as any).user.id;
+    const result = await getAllPostsService(userId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch posts";

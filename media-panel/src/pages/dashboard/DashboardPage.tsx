@@ -68,10 +68,10 @@ export default function DashboardPage({ role, liveActive, setScreen, connectedCo
       { label: 'Service Status', value: isLive ? 'Live' : 'Offline', sub: isLive ? 'In progress' : 'Not started', icon: Radio, color: 'text-emerald-400' },
       { label: 'Current Sermon', value: lastBroadcast?.reference ?? '—', sub: lastBroadcast?.text?.slice(0, 30) ?? 'No scripture yet', icon: BookOpen, color: 'text-amber-400' },
       { label: 'Announcements', value: '2', sub: 'Pushed today', icon: Megaphone, color: 'text-blue-400' },
-      { label: 'Total Giving', value: `₦${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-emerald-400' },
+      { label: 'Total Giving', value: `Ksh${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-emerald-400' },
     ],
     Secretary: [
-      { label: 'Total Giving', value: `₦${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-emerald-400' },
+      { label: 'Total Giving', value: `Ksh${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-emerald-400' },
       { label: 'Submissions', value: `${givingSummary?.count ?? 0}`, sub: 'Records this service', icon: CheckCircle2, color: 'text-blue-400' },
       { label: 'Announcements', value: '2', sub: 'Sent today', icon: Megaphone, color: 'text-amber-400' },
       { label: 'Devices Online', value: connectedCount.toString(), sub: 'Congregation', icon: Users, color: 'text-purple-400' },
@@ -79,7 +79,7 @@ export default function DashboardPage({ role, liveActive, setScreen, connectedCo
     Admin: [
       { label: 'Service Status', value: isLive ? 'Live' : 'Offline', sub: isLive ? 'In progress' : 'Not started', icon: Radio, color: 'text-emerald-400' },
       { label: 'Connected Devices', value: connectedCount.toString(), sub: 'Congregation devices', icon: Users, color: 'text-blue-400' },
-      { label: 'Total Giving', value: `₦${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-amber-400' },
+      { label: 'Total Giving', value: `Ksh${(givingSummary?.total ?? 0).toLocaleString()}`, sub: `${givingSummary?.count ?? 0} submissions`, icon: Heart, color: 'text-amber-400' },
       { label: 'Sync Health', value: isLive ? '98%' : '—', sub: isLive ? 'All regions' : 'Offline', icon: Activity, color: 'text-purple-400' },
     ],
   }
@@ -228,7 +228,7 @@ export default function DashboardPage({ role, liveActive, setScreen, connectedCo
                       <p className="text-sm font-semibold text-white truncate">{item.user?.name ?? 'Unknown'}</p>
                       <p className="text-xs text-slate-500 capitalize">{item.category.toLowerCase().replace(/_/g, ' ')}</p>
                     </div>
-                    <span className="text-sm font-semibold text-emerald-400">₦{item.amount.toLocaleString()}</span>
+                    <span className="text-sm font-semibold text-emerald-400">Ksh{item.amount.toLocaleString()}</span>
                   </div>
                 ))}{''}
               </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { type ScriptureResult, scriptureService } from '../../services/scripture.service'
+import { useScriptureStore } from '../../store/scripture.store'
 
 interface RecentScripturesProps {
   onSelect?: (scripture: ScriptureResult) => void
@@ -9,10 +10,11 @@ export default function RecentScriptures({ onSelect }: RecentScripturesProps) {
   const [favorites, setFavorites] = useState<ScriptureResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const selectedVersion = useScriptureStore((state) => state.selectedVersion)
 
   useEffect(() => {
     loadFavorites()
-  }, [])
+  }, [selectedVersion])
 
   const loadFavorites = async () => {
     setLoading(true)
@@ -29,7 +31,7 @@ export default function RecentScriptures({ onSelect }: RecentScripturesProps) {
       const results: ScriptureResult[] = []
       for (const ref of commonReferences) {
         try {
-          const scripture = await scriptureService.getByReference(ref)
+          const scripture = await scriptureService.getByReference(ref, selectedVersion)
           if (scripture && scripture.length > 0) {
             results.push(scripture[0])
           }
@@ -87,4 +89,3 @@ export default function RecentScriptures({ onSelect }: RecentScripturesProps) {
     </div>
   )
 }
-

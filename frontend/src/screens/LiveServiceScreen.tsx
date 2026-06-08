@@ -110,7 +110,9 @@ export default function LiveServiceScreen() {
                   {scripture?.reference ?? "John 14:15–17"}
                 </Text>
               </View>
-              <Text style={styles.scriptureVersion}>NIV · Synchronized</Text>
+              <Text style={styles.scriptureVersion}>
+                {scripture?.version ? `${scripture.version} · Synchronized` : 'Synchronized'}
+              </Text>
             </View>
 
             <ScrollView

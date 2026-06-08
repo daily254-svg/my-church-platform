@@ -7,6 +7,7 @@ import type { Scripture } from '../types/media.types'
 export function useScriptureSearch() {
   const query = useScriptureStore((state) => state.query)
   const setQuery = useScriptureStore((state) => state.setQuery)
+  const selectedVersion = useScriptureStore((state) => state.selectedVersion)
   const [results, setResults] = useState<Scripture[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -21,12 +22,13 @@ export function useScriptureSearch() {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const apiResults = await scriptureService.search(query, 'kjv')
+        const apiResults = await scriptureService.search(query, selectedVersion)
 
         // Map ScriptureResult → Scripture shape the UI expects
         const mapped: Scripture[] = apiResults.map((r) => ({
           id: r.reference,           // use reference as unique id
           ref: r.reference,          // "Genesis 1:1"
+          version: r.version,
           text: r.text,
           favorite: SCRIPTURES_DB.some((s) => s.ref === r.reference && s.favorite),
         }))
@@ -46,7 +48,7 @@ export function useScriptureSearch() {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, selectedVersion])
 
   const clearSearch = () => {
     setQuery('')

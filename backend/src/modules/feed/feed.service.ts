@@ -33,22 +33,25 @@ export const createPost = async (
   return post;
 };
 
-export const getAllPosts = async () => {
+export const getAllPosts = async (userId: string) => {
   const posts = await prisma.feedPost.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
     include: {
       user: {
-        select: {
-          name: true,
-          role: true,
-        },
+        select: { name: true, role: true },
+      },
+      likes: {
+        where: { userId },
+        select: { userId: true },
       },
     },
   });
 
-  return posts;
+  return posts.map((post) => ({
+    ...post,
+    isLiked: post.likes.length > 0,
+    likes: undefined, // don't expose the raw likes array
+  }));
 };
 
 export const likePost = async (postId: string, userId: string) => {

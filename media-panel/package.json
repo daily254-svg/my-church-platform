@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "start": "serve -s dist -l $PORT",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -15,6 +16,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
+    "serve": "^14.2.6",
     "socket.io-client": "^4.8.3",
     "zustand": "^5.0.13"
   },

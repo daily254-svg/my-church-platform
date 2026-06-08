@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, Clock, Trash2, Send, Calendar, Palette } from 'lucide-react'
+import { CheckCircle2, Clock, Trash2, Send, Calendar, Palette, AlertTriangle } from 'lucide-react'
 import type { Role } from '../../types/media.types'
 import { announcementService } from '../../services/announcement.service'
 import { eventService } from '../../services/event.service'
@@ -50,10 +50,14 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
   const [eventAccent, setEventAccent] = useState('#1B3A7A')
   const [eventCreating, setEventCreating] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [deletingPastEvents, setDeletingPastEvents] = useState(false)
 
   const categories = ['GENERAL', 'EVENT', 'EMERGENCY', 'PRAYER', 'OFFERING']
   const accentPresets = ['#1B3A7A', '#C4933A', '#2D7A6A', '#6B3A7A', '#EF4444']
   const canCompose = role === 'Pastor' || role === 'Admin' || role === 'Secretary'
+
+  // ── Refs for scroll containers ──────────────────────
 
   // Fetch announcements and events on mount
   useEffect(() => {
@@ -77,6 +81,37 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
 
     fetchData()
   }, [])
+
+  // Auto-delete past events on load and periodically
+  useEffect(() => {
+    const deletePastEvents = async () => {
+      const now = new Date()
+      const pastEvents = events.filter(event => {
+        const eventDateTime = new Date(`${event.date}T${event.time}`)
+        return eventDateTime < now
+      })
+
+      if (pastEvents.length > 0) {
+        setDeletingPastEvents(true)
+        try {
+          await Promise.all(
+            pastEvents.map(event => eventService.delete(event.id))
+          )
+          // Refetch events after deletion
+          const updatedEvents = await eventService.getAll()
+          setEvents(updatedEvents)
+        } catch (err) {
+          console.error('Failed to auto-delete past events:', err)
+        } finally {
+          setDeletingPastEvents(false)
+        }
+      }
+    }
+
+    if (events.length > 0) {
+      deletePastEvents()
+    }
+  }, [events.length]) // Run when events are loaded
 
   const pushAnnouncement = async () => {
     if (!title || !body) return
@@ -121,6 +156,7 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
       // Refetch to get updated list
       const data = await announcementService.getAll()
       setAnnouncements(data)
+      setShowDeleteConfirm(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete announcement'
       alert(message)
@@ -162,6 +198,7 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
       // Refetch to get updated list
       const data = await eventService.getAll()
       setEvents(data)
+      setShowDeleteConfirm(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete event'
       alert(message)
@@ -197,298 +234,396 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
     return categoryColors[formatted] || 'bg-slate-500/15 text-slate-400 border-slate-500/20'
   }
 
+  const isPastEvent = (event: Event): boolean => {
+    const eventDateTime = new Date(`${event.date}T${event.time}`)
+    return eventDateTime < new Date()
+  }
+
   // ── Loading state ──────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex-1 overflow-auto bg-slate-950 p-6 flex items-center justify-center">
+      <div className="h-full w-full bg-slate-950 p-6 flex items-center justify-center">
         <div className="text-slate-400 text-sm">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-slate-950 p-6 space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Announcements & Events</h1>
-        <p className="text-sm text-slate-400 mt-1">Compose and push live announcements to the congregation</p>
-      </div>
-
-      {/* ── Error message ─────────────────────────────── */}
-      {error && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
-          <p className="text-sm text-red-400">{error}</p>
+    <div className="h-full w-full overflow-y-auto bg-slate-950">
+      <div className="p-6 space-y-5 min-h-full">
+        <div>
+          <h1 className="text-2xl font-semibold">Announcements & Events</h1>
+          <p className="text-sm text-slate-400 mt-1">Compose and push live announcements to the congregation</p>
         </div>
-      )}
 
-      {/* ── Announcements Compose form ────────────────── */}
-      {canCompose && (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold">New Announcement</h2>
+        {/* ── Error message ─────────────────────────────── */}
+        {error && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+            <p className="text-sm text-red-400">{error}</p>
           </div>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {categories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setCategory(item)}
-                className={`rounded-2xl px-3 py-2 text-xs font-medium transition ${
-                  category === item
-                    ? getCategoryColor(item)
-                    : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                {formatCategory(item)}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-3">
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Announcement title"
-              className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
-            />
-            <textarea
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder="Write the announcement message for the congregation…"
-              rows={4}
-              className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
-            />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <input
-                  type="datetime-local"
-                  value={scheduled}
-                  onChange={(event) => setScheduled(event.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={pushAnnouncement}
-                disabled={!title || !body || sending}
-                className="inline-flex items-center gap-2 rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {sending ? 'Creating…' : 'Create Announcement'}
-              </button>
+        )}
+
+        {/* ── Announcements Compose form ────────────────── */}
+        {canCompose && (
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold">New Announcement</h2>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Events Compose form ───────────────────────── */}
-      {canCompose && (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold">New Event</h2>
-          </div>
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-wrap gap-2 mb-4">
+              {categories.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setCategory(item)}
+                  className={`rounded-2xl px-3 py-2 text-xs font-medium transition ${
+                    category === item
+                      ? getCategoryColor(item)
+                      : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  {formatCategory(item)}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-3">
               <input
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                placeholder="Event title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Announcement title"
                 className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               />
-              <input
-                value={eventType}
-                onChange={(e) => setEventType(e.target.value)}
-                placeholder="Event type (e.g. Service, Fellowship)"
+              <textarea
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                placeholder="Write the announcement message for the congregation…"
+                rows={4}
                 className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none"
-                />
-              </div>
-              <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <input
+                    type="datetime-local"
+                    value={scheduled}
+                    onChange={(event) => setScheduled(event.target.value)}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="inline-flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition"
+                  onClick={pushAnnouncement}
+                  disabled={!title || !body || sending}
+                  className="inline-flex items-center gap-2 rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Palette className="w-4 h-4" />
-                  <div
-                    className="w-4 h-4 rounded-full border border-white/20"
-                    style={{ backgroundColor: eventAccent }}
-                  />
-                  Accent Color
+                  {sending ? 'Creating…' : 'Create Announcement'}
                 </button>
-                {showColorPicker && (
-                  <div className="absolute top-full left-0 mt-2 rounded-2xl border border-white/10 bg-slate-900 p-3 flex gap-2 z-10">
-                    {accentPresets.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => {
-                          setEventAccent(color)
-                          setShowColorPicker(false)
-                        }}
-                        className={`w-8 h-8 rounded-full border-2 transition ${
-                          eventAccent === color ? 'border-white' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
-              <button
-                type="button"
-                onClick={createEvent}
-                disabled={!eventTitle || !eventDate || !eventTime || !eventType || eventCreating}
-                className="inline-flex items-center gap-2 rounded-3xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {eventCreating ? 'Creating…' : 'Create Event'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Announcements list ────────────────────────── */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">Announcements</h2>
-        <div className="space-y-3">
-          {announcements.length === 0 && !loading && !error && (
-            <div className="text-center py-8">
-              <p className="text-slate-500 text-sm">No announcements yet.</p>
+        {/* ── Events Compose form ───────────────────────── */}
+        {canCompose && (
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold">New Event</h2>
             </div>
-          )}
-          {announcements.map((announcement) => (
-            <div key={announcement.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span
-                      className={`rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] ${getCategoryColor(announcement.category)}`}
-                    >
-                      {formatCategory(announcement.category)}
-                    </span>
-                    {announcement.isLive ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-mono">
-                        <CheckCircle2 className="w-3 h-3" /> Sent {announcement.sentAt ? formatDate(announcement.sentAt) : ''}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-500 font-mono">Draft</span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-white">{announcement.title}</h3>
-                  <p className="text-sm text-slate-400 mt-2 leading-relaxed">{announcement.body}</p>
-                  {announcement.scheduledAt && !announcement.isLive && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Scheduled: {formatDate(announcement.scheduledAt)}
-                    </p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  placeholder="Event title"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
+                />
+                <input
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                  placeholder="Event type (e.g. Service, Fellowship)"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <input
+                    type="time"
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="inline-flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition"
+                  >
+                    <Palette className="w-4 h-4" />
+                    <div
+                      className="w-4 h-4 rounded-full border border-white/20"
+                      style={{ backgroundColor: eventAccent }}
+                    />
+                    Accent Color
+                  </button>
+                  {showColorPicker && (
+                    <div className="absolute top-full left-0 mt-2 rounded-2xl border border-white/10 bg-slate-900 p-3 flex gap-2 z-10">
+                      {accentPresets.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => {
+                            setEventAccent(color)
+                            setShowColorPicker(false)
+                          }}
+                          className={`w-8 h-8 rounded-full border-2 transition ${
+                            eventAccent === color ? 'border-white' : 'border-transparent'
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
-                {canCompose && (
-                  <div className="flex items-center gap-2">
-                    {/* Send button — only show for unsent announcements */}
-                    {!announcement.isLive && (
+                <button
+                  type="button"
+                  onClick={createEvent}
+                  disabled={!eventTitle || !eventDate || !eventTime || !eventType || eventCreating}
+                  className="inline-flex items-center gap-2 rounded-3xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {eventCreating ? 'Creating…' : 'Create Event'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Announcements list ────────────────────────── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
+              Announcements ({announcements.length})
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {announcements.length === 0 && !loading && !error && (
+              <div className="text-center py-8">
+                <p className="text-slate-500 text-sm">No announcements yet.</p>
+              </div>
+            )}
+            {announcements.map((announcement) => (
+              <div key={announcement.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span
+                        className={`rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] ${getCategoryColor(announcement.category)}`}
+                      >
+                        {formatCategory(announcement.category)}
+                      </span>
+                      {announcement.isLive ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-mono">
+                          <CheckCircle2 className="w-3 h-3" /> Sent {announcement.sentAt ? formatDate(announcement.sentAt) : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-500 font-mono">Draft</span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">{announcement.title}</h3>
+                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">{announcement.body}</p>
+                    {announcement.scheduledAt && !announcement.isLive && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        Scheduled: {formatDate(announcement.scheduledAt)}
+                      </p>
+                    )}
+                  </div>
+                  {canCompose && (
+                    <div className="flex items-center gap-2">
+                      {/* Send button — only show for unsent announcements */}
+                      {!announcement.isLive && (
+                        <button
+                          type="button"
+                          onClick={() => handleSend(announcement.id)}
+                          className="rounded-2xl border border-emerald-500/30 p-3 text-emerald-400 transition hover:border-emerald-400 hover:bg-emerald-500/10"
+                          title="Send Now"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      )}
+                      {/* Delete button */}
                       <button
                         type="button"
-                        onClick={() => handleSend(announcement.id)}
-                        className="rounded-2xl border border-emerald-500/30 p-3 text-emerald-400 transition hover:border-emerald-400 hover:bg-emerald-500/10"
-                        title="Send Now"
+                        onClick={() => setShowDeleteConfirm(announcement.id)}
+                        className="rounded-2xl border border-white/10 p-3 text-slate-400 transition hover:border-red-400 hover:text-red-400"
+                        title="Delete"
                       >
-                        <Send className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
-                    {/* Delete button */}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteAnnouncement(announcement.id)}
-                      className="rounded-2xl border border-white/10 p-3 text-slate-400 transition hover:border-red-400 hover:text-red-400"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* ── Events list ────────────────────────────────── */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">Upcoming Events</h2>
+        {/* ── Events list ────────────────────────────────── */}
         <div className="space-y-3">
-          {events.length === 0 && !loading && !error && (
-            <div className="text-center py-8">
-              <p className="text-slate-500 text-sm">No events yet.</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
+              Upcoming Events ({events.filter(e => !isPastEvent(e)).length})
+            </h2>
+          </div>
+          {deletingPastEvents && (
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <p className="text-sm text-amber-400">Cleaning up past events...</p>
             </div>
           )}
-          {events.map((event) => (
-            <div key={event.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-4 min-w-0 flex-1">
-                  {/* Accent color bar */}
-                  <div
-                    className="w-1.5 h-full min-h-[60px] rounded-full flex-shrink-0 mt-1"
-                    style={{ backgroundColor: event.accent || '#1B3A7A' }}
-                  />
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                    <div className="flex flex-wrap items-center gap-3 mt-1">
-                      <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {formatEventDate(event.date)}
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {event.time}
-                      </span>
-                      <span
-                        className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-                        style={{
-                          backgroundColor: `${event.accent || '#1B3A7A'}20`,
-                          color: event.accent || '#1B3A7A',
-                          borderColor: `${event.accent || '#1B3A7A'}30`,
-                        }}
-                      >
-                        {event.type}
-                      </span>
+          <div className="space-y-3">
+            {events.length === 0 && !loading && !error && (
+              <div className="text-center py-8">
+                <p className="text-slate-500 text-sm">No events yet.</p>
+              </div>
+            )}
+            {events
+              .filter(event => !isPastEvent(event))
+              .map((event) => (
+              <div key={event.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    {/* Accent color bar */}
+                    <div
+                      className="w-1.5 h-full min-h-[60px] rounded-full flex-shrink-0 mt-1"
+                      style={{ backgroundColor: event.accent || '#1B3A7A' }}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-white">{event.title}</h3>
+                      <div className="flex flex-wrap items-center gap-3 mt-1">
+                        <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatEventDate(event.date)}
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {event.time}
+                        </span>
+                        <span
+                          className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                          style={{
+                            backgroundColor: `${event.accent || '#1B3A7A'}20`,
+                            color: event.accent || '#1B3A7A',
+                            borderColor: `${event.accent || '#1B3A7A'}30`,
+                          }}
+                        >
+                          {event.type}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  {canCompose && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(event.id)}
+                        className="rounded-2xl border border-white/10 p-3 text-slate-400 transition hover:border-red-400 hover:text-red-400"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {canCompose && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="rounded-2xl border border-white/10 p-3 text-slate-400 transition hover:border-red-400 hover:text-red-400"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              </div>
+            ))}
+            
+            {/* Show past events in a collapsed section */}
+            {events.some(event => isPastEvent(event)) && (
+              <div className="mt-3">
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-400 transition py-2 px-3 rounded-2xl border border-white/5 bg-white/[0.02]">
+                    Show past events ({events.filter(e => isPastEvent(e)).length})
+                  </summary>
+                  <div className="mt-2 space-y-2 opacity-60">
+                    {events
+                      .filter(event => isPastEvent(event))
+                      .map((event) => (
+                        <div key={event.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div
+                              className="w-1 h-full min-h-[40px] rounded-full flex-shrink-0 mt-1"
+                              style={{ backgroundColor: event.accent || '#1B3A7A' }}
+                            />
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-medium text-slate-300">{event.title}</h4>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="text-xs text-slate-500">
+                                  {formatEventDate(event.date)} at {event.time}
+                                </span>
+                                <span className="text-xs text-red-400">Past</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
-                )}
+                </details>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Delete Confirmation Modal ─────────────────── */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="rounded-3xl border border-white/10 bg-slate-900 p-6 max-w-sm w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-full bg-red-500/10 p-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Confirm Delete</h3>
+              </div>
+              <p className="text-sm text-slate-400 mb-6">
+                Are you sure you want to delete this item? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Check if it's an event or announcement being deleted
+                    const isEvent = events.some(e => e.id === showDeleteConfirm)
+                    if (isEvent) {
+                      handleDeleteEvent(showDeleteConfirm)
+                    } else {
+                      handleDeleteAnnouncement(showDeleteConfirm)
+                    }
+                  }}
+                  className="flex-1 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition"
+                >
+                  Delete
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

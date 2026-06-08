@@ -36,8 +36,8 @@ import { sermonService } from "../services/sermon.service";
 import { eventService } from "../services/event.service";
 import { getDailyScripture } from '../utils/daily-scripture';
 import { profilePictureService } from "../services/profile-picture.service";
+import { ministryService } from "../services/ministry.service";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const EVENT_CARD_WIDTH = 148;
 const MINISTRY_AVATAR_SIZE = 56;
 const LIVE_BANNER_HEIGHT = 180;
@@ -79,7 +79,7 @@ type HomeNavigationProp = NativeStackNavigationProp<
 >;
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { isLive, currentService, scripture, connectedCount } = useLiveService();
   const socketContext = useContext(SocketContext);
   const announcements = socketContext?.announcements ?? [];
@@ -88,9 +88,19 @@ export default function HomeScreen() {
   const [sermons, setSermons] = useState<Sermon[]>([]);
   const [sermonsLoading, setSermonsLoading] = useState(true);
   const dailyScripture = getDailyScripture();
+  const [myMinistries, setMyMinistries] = useState<{ id: string; name: string }[]>([]);
   
 
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!token) return;
+    ministryService.getMyGroups(token)
+    .then((data) => {
+      setMyMinistries(data.map((item: any) => item.group));
+    })
+    .catch(() => {});
+  }, [token]);
 
   // Fetch sermons from backend
   useEffect(() => {
@@ -223,6 +233,16 @@ export default function HomeScreen() {
     const diffHrs = Math.floor(diffMins / 60);
     if (diffHrs < 24) return `${diffHrs}h ago`;
     return formatDate(dateString);
+  };
+
+  const getMinistryAbbrev = (name: string): string => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .filter(w => w.length > 0)
+      .map(w => w[0].toUpperCase())
+      .slice(0, 2)
+      .join('');
   };
 
   return (
@@ -528,31 +548,34 @@ export default function HomeScreen() {
                 <Text style={styles.seeAllLink}>All</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.ministriesScroll}
-            >
-              {ministryAvatars.map((ministry) => (
-                <TouchableOpacity
-                  key={ministry.label}
-                  style={styles.ministryItem}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={ministry.label}
-                >
-                  <View style={styles.ministryAvatarContainer}>
-                    <Image
-                      source={{
-                        uri: `https://images.unsplash.com/photo-${ministry.img}?w=80&h=80&fit=crop&auto=format`,
-                      }}
-                      style={styles.ministryAvatar}
-                    />
-                  </View>
-                  <Text style={styles.ministryLabel}>{ministry.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {myMinistries.length === 0 ? (
+              <Text style={styles.noMinistriesText}>No ministries joined yet</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.ministriesScroll}
+              >
+                {myMinistries.map((ministry) => (
+                  <TouchableOpacity
+                    key={ministry.id}
+                    style={styles.ministryItem}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={ministry.name}
+                  >
+                    <View style={styles.ministryAvatarContainer}>
+                      <Text style={styles.ministryAbbrev}>
+                        {getMinistryAbbrev(ministry.name)}
+                      </Text>
+                    </View>
+                    <Text style={styles.ministryLabel} numberOfLines={1}>
+                      {ministry.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
 
           <View style={styles.bottomSpacer} />
@@ -1112,14 +1135,24 @@ const styles = StyleSheet.create({
     width: MINISTRY_AVATAR_SIZE,
     height: MINISTRY_AVATAR_SIZE,
     borderRadius: 16,
-    overflow: "hidden",
     backgroundColor: "#EDF0F8",
     borderWidth: 2,
     borderColor: "rgba(27,58,122,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  ministryAvatar: {
-    width: "100%",
-    height: "100%",
+  ministryAbbrev: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1B3A7A",
+    fontFamily: SANS,
+  },
+  noMinistriesText: {
+    fontSize: 12,
+    color: "#B0A89A",
+    fontFamily: SANS,
+    textAlign: "center",
+    paddingVertical: 12,
   },
   ministryLabel: {
     fontSize: 10,

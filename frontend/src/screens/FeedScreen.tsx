@@ -73,6 +73,9 @@ export default function FeedScreen() {
     try {
       const data = await feedService.getAll(token!);
       setPosts(data);
+      setLikedPosts(
+        new Set(data.filter((p) => p.isLiked).map((p) => p.id))
+      );
     } catch (err) {
       console.warn("[feed] Failed to fetch posts:", err);
     } finally {

@@ -19,7 +19,7 @@ import path from "path";
 
 const app = express();
 
-// Initialize scripture service
+// Initialize scripture service — loads kjv, nkjv, web in parallel
 scriptureService.initialize().catch((err) => {
   console.error("[App] Failed to initialize scripture service:", err);
 });

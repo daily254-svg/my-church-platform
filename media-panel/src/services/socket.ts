@@ -6,6 +6,7 @@ import { SOCKET_URL } from '../utils/constants'
 export interface ScripturePayload {
   reference: string
   text:      string
+  version?:  string
 }
 
 export interface ServicePayload {

@@ -24,16 +24,16 @@ type BibleChapterScreenNavigationProp = NativeStackNavigationProp<
 interface BibleChapterRouteProp {
   book: string;
   chapter: number;
+  version?: string;
 }
 
+// Updated versions - only local versions and AMP/NENO from API
 const VERSIONS = [
-  { label: 'KJV',  value: 'kjv' },
-  { label: 'NKJV', value: 'nkjv' },
-  { label: 'AMP',  value: 'amp' },
-  { label: 'NLT',  value: 'nlt' },
-  { label: 'MSG',  value: 'msg' },
-  { label: 'NIV',  value: 'niv' },
-  { label: 'NENO', value: 'neno' },
+  { label: 'KJV',  value: 'kjv',  source: 'local' },
+  { label: 'NKJV', value: 'nkjv', source: 'local' },
+  { label: 'WEB',  value: 'web',  source: 'local' },
+  { label: 'AMP',  value: 'amp',  source: 'api-bible' },
+  { label: 'NENO', value: 'neno', source: 'api-bible' },
 ];
 
 const VerseItem = React.memo(({ verse, index }: { verse: ScriptureResult; index: number }) => {
@@ -57,19 +57,31 @@ export default function BibleChapterScreen() {
   const navigation = useNavigation<BibleChapterScreenNavigationProp>();
   const route = useRoute();
 
-  const { book, chapter } = (route.params as BibleChapterRouteProp) || {};
+  const { book, chapter, version: routeVersion } = (route.params as BibleChapterRouteProp) || {};
 
   const [verses, setVerses] = useState<ScriptureResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalChapters, setTotalChapters] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState('kjv');
+  // ✅ Initialize with route version if available, otherwise default to 'kjv'
+  const [selectedVersion, setSelectedVersion] = useState(routeVersion || 'kjv');
   const [error, setError] = useState<string | null>(null);
+  const [availableVersions, setAvailableVersions] = useState<{ id: string; abbreviation: string; name: string; source: string }[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
-  // ✅ Fixed: Use proper ScrollView ref type
   const scrollViewRef = useRef<ScrollView>(null);
   const versionScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    loadAvailableVersions();
+  }, []);
+
+ // ✅ Update selectedVersion when route params change
+  useEffect(() => {
+    if (routeVersion && routeVersion !== selectedVersion) {
+      setSelectedVersion(routeVersion);
+    }
+  }, [routeVersion]);
 
   useEffect(() => {
     if (book && chapter) {
@@ -78,6 +90,17 @@ export default function BibleChapterScreen() {
       animateContent();
     }
   }, [book, chapter, selectedVersion]);
+
+  const loadAvailableVersions = async () => {
+    try {
+      const versions = await scriptureService.getAvailableVersions();
+      if (versions && versions.length > 0) {
+        setAvailableVersions(versions);
+      }
+    } catch (error) {
+      console.error('Failed to load versions:', error);
+    }
+  };
 
   const animateContent = () => {
     fadeAnim.setValue(0);
@@ -101,9 +124,9 @@ export default function BibleChapterScreen() {
         setVerses(results);
         setError(null);
       } else {
-        // Handle empty results - this is where NLT/NIV issue occurs
         setVerses([]);
-        setError(`No verses found for ${VERSIONS.find(v => v.value === selectedVersion)?.label || selectedVersion}. This version may not have this book available.`);
+        const versionName = VERSIONS.find(v => v.value === selectedVersion)?.label || selectedVersion.toUpperCase();
+        setError(`No verses found for ${versionName}. This version may not have this book available.`);
       }
     } catch (error) {
       setError('Failed to load scripture. Please try again.');
@@ -116,23 +139,34 @@ export default function BibleChapterScreen() {
   const getTotalChapters = async (book: string) => {
     if (!book) return;
     try {
-      const chapters = await scriptureService.getBookChapters(book);
+      const chapters = await scriptureService.getBookChapters(book, selectedVersion);
       setTotalChapters(chapters.length);
     } catch (error) {
       // Silently fail for total chapters
+      console.error('Failed to get total chapters:', error);
     }
   };
 
   const handlePreviousChapter = () => {
     if (chapter > 1) {
-      navigation.replace('BibleChapter', { book, chapter: chapter - 1 });
+      // ✅ Fixed: Pass selectedVersion in navigation params
+      navigation.replace('BibleChapter', {
+        book,
+        chapter: chapter - 1,
+        version: selectedVersion,
+      } as any);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
   const handleNextChapter = () => {
     if (chapter < totalChapters) {
-      navigation.replace('BibleChapter', { book, chapter: chapter + 1 });
+      // ✅ Fixed: Pass selectedVersion in navigation params
+      navigation.replace('BibleChapter', {
+        book,
+        chapter: chapter + 1,
+        version: selectedVersion,
+      } as any);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
@@ -149,6 +183,11 @@ export default function BibleChapterScreen() {
     setSelectedVersion(version);
   };
 
+  // Get current version info
+  const currentVersion = VERSIONS.find(v => v.value === selectedVersion);
+  const versionLabel = currentVersion?.label || selectedVersion.toUpperCase();
+  const versionSource = currentVersion?.source || 'local';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
@@ -164,9 +203,19 @@ export default function BibleChapterScreen() {
             <BookOpen size={16} color="#1e40af" />
             <Text style={styles.bookName}>{book}</Text>
           </View>
-          <Text style={styles.chapterNumber}>
-            Chapter {chapter} • {VERSIONS.find(v => v.value === selectedVersion)?.label}
-          </Text>
+          <View style={styles.headerSubtitleRow}>
+            <Text style={styles.chapterNumber}>
+              Chapter {chapter} • {versionLabel}
+            </Text>
+            <View style={[
+              styles.sourceBadge, 
+              versionSource === 'local' ? styles.sourceBadgeLocal : styles.sourceBadgeApi
+            ]}>
+              <Text style={styles.sourceBadgeText}>
+                {versionSource === 'local' ? 'OFFLINE' : 'ONLINE'}
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.headerActions}>
@@ -197,9 +246,15 @@ export default function BibleChapterScreen() {
                 onPress={() => handleVersionChange(v.value)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.versionTabText, isActive && styles.versionTabTextActive]}>
-                  {v.label}
-                </Text>
+                <View style={styles.versionTabContent}>
+                  <Text style={[styles.versionTabText, isActive && styles.versionTabTextActive]}>
+                    {v.label}
+                  </Text>
+                  <View style={[
+                    styles.versionSourceDot,
+                    { backgroundColor: v.source === 'local' ? '#10b981' : '#f59e0b' }
+                  ]} />
+                </View>
                 {isActive && <View style={styles.activeIndicator} />}
               </TouchableOpacity>
             );
@@ -248,7 +303,7 @@ export default function BibleChapterScreen() {
             <ActivityIndicator size="large" color="#1e40af" style={styles.loader} />
             <Text style={styles.loadingText}>Loading Scriptures...</Text>
             <Text style={styles.loadingSubtext}>
-              {book} {chapter} • {VERSIONS.find(v => v.value === selectedVersion)?.label}
+              {book} {chapter} • {versionLabel}
             </Text>
           </View>
         </View>
@@ -262,6 +317,12 @@ export default function BibleChapterScreen() {
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.retryButton, styles.switchVersionButton]}
+            onPress={() => handleVersionChange('kjv')}
+          >
+            <Text style={styles.retryButtonText}>Switch to KJV</Text>
+          </TouchableOpacity>
         </View>
       ) : verses.length > 0 ? (
         <ScrollView
@@ -270,12 +331,11 @@ export default function BibleChapterScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* ✅ Wrapped in Animated.View for fade animation */}
           <Animated.View style={{ opacity: fadeAnim }}>
             <View style={styles.chapterHeader}>
               <View style={styles.chapterHeaderLine} />
               <Text style={styles.chapterHeaderText}>
-                {book} {chapter} • {VERSIONS.find(v => v.value === selectedVersion)?.label}
+                {book} {chapter} • {versionLabel}
               </Text>
               <View style={styles.chapterHeaderLine} />
             </View>
@@ -292,6 +352,12 @@ export default function BibleChapterScreen() {
           <BookOpen size={64} color="#d1d5db" />
           <Text style={styles.emptyText}>No content available</Text>
           <Text style={styles.emptySubtext}>Please try another version or chapter</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, styles.switchVersionButton]}
+            onPress={() => handleVersionChange('kjv')}
+          >
+            <Text style={styles.retryButtonText}>Switch to KJV</Text>
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -335,6 +401,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  headerSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
   bookName: {
     fontSize: 18,
     fontWeight: '700',
@@ -343,8 +415,24 @@ const styles = StyleSheet.create({
   chapterNumber: {
     fontSize: 13,
     color: '#64748b',
-    marginTop: 2,
     fontWeight: '500',
+  },
+  sourceBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  sourceBadgeLocal: {
+    backgroundColor: '#d1fae5',
+  },
+  sourceBadgeApi: {
+    backgroundColor: '#fef3c7',
+  },
+  sourceBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#374151',
+    letterSpacing: 0.5,
   },
   headerActions: {
     flexDirection: 'row',
@@ -366,6 +454,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 60,
   },
+  versionTabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   versionTabText: {
     fontSize: 14,
     fontWeight: '600',
@@ -375,6 +468,11 @@ const styles = StyleSheet.create({
   versionTabTextActive: {
     color: '#1e40af',
     fontWeight: '700',
+  },
+  versionSourceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   activeIndicator: {
     position: 'absolute',
@@ -556,12 +654,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 16,
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
   retryButton: {
     backgroundColor: '#1e40af',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
+    marginBottom: 8,
+  },
+  switchVersionButton: {
+    backgroundColor: '#10b981',
   },
   retryButtonText: {
     color: '#fff',

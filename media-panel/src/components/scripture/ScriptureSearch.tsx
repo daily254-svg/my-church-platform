@@ -1,23 +1,30 @@
-import { useState } from 'react'
-import { scriptureService, type ScriptureResult } from '../../services/scripture.service'
+import { useState, useEffect } from 'react'
+import { scriptureService, type ScriptureResult, type BibleVersion } from '../../services/scripture.service'
+import { useScriptureStore } from '../../store/scripture.store'
 
 export default function ScriptureSearch() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ScriptureResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [version, setVersion] = useState<'kjv' | 'api-bible'>('kjv')
+  const selectedVersion = useScriptureStore((state) => state.selectedVersion)
+  const setSelectedVersion = useScriptureStore((state) => state.setSelectedVersion)
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim()) return
+  const versions = [
+    { value: 'kjv', label: 'KJV' },
+    { value: 'nkjv', label: 'NKJV' },
+    { value: 'web', label: 'WEB' },
+    { value: 'amp', label: 'AMP' },
+    { value: 'neno', label: 'Neno' },
+    { value: 'api-bible', label: 'API Bible' },
+  ] as const
 
+  const runSearch = async (q: string) => {
+    if (!q.trim()) return
     setLoading(true)
     setError(null)
     try {
-      const searchResults = await scriptureService.search(query, version)
-      searchResults.forEach((_r, _i) => {
-      })
+      const searchResults = await scriptureService.search(q, selectedVersion)
       setResults(searchResults)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed')
@@ -26,6 +33,16 @@ export default function ScriptureSearch() {
       setLoading(false)
     }
   }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    runSearch(query)
+  }
+
+  // Re-run search when version changes if there's already a query
+  useEffect(() => {
+    if (query.trim()) runSearch(query)
+  }, [selectedVersion])
 
   return (
     <div className="card">
@@ -50,24 +67,17 @@ export default function ScriptureSearch() {
         </form>
 
         <div className="flex gap-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              value="kjv"
-              checked={version === 'kjv'}
-              onChange={(e) => setVersion(e.target.value as 'kjv')}
-            />
-            <span className="text-sm">KJV (Offline)</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              value="api-bible"
-              checked={version === 'api-bible'}
-              onChange={(e) => setVersion(e.target.value as 'api-bible')}
-            />
-            <span className="text-sm">API Bible</span>
-          </label>
+          {versions.map((v) => (
+            <label key={v.value} className="flex items-center gap-2">
+              <input
+                type="radio"
+                value={v.value}
+                checked={selectedVersion === v.value}
+                onChange={(e) => setSelectedVersion(e.target.value as BibleVersion)}
+              />
+              <span className="text-sm">{v.label}</span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -103,4 +113,3 @@ export default function ScriptureSearch() {
     </div>
   )
 }
-

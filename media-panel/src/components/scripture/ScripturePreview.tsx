@@ -1,16 +1,23 @@
 import { type ScriptureResult } from '../../services/scripture.service'
+import { useScriptureStore } from '../../store/scripture.store'
 
 interface ScripturePreviewProps {
   scripture?: ScriptureResult | null
 }
 
 export default function ScripturePreview({ scripture }: ScripturePreviewProps) {
+  const broadcastScripture = useScriptureStore((state) => state.broadcastScripture)
+
   if (!scripture) {
     return (
       <div className="card p-4 text-center text-gray-500">
         <p>Select a scripture to preview</p>
       </div>
     )
+  }
+
+  const handleBroadcast = () => {
+    broadcastScripture(scripture.reference, scripture.text, scripture.version)
   }
 
   return (
@@ -20,7 +27,7 @@ export default function ScripturePreview({ scripture }: ScripturePreviewProps) {
           {scripture.reference}
         </h3>
         <p className="text-xs text-gray-500">
-          Source: {scripture.source === 'local' ? 'KJV Offline' : 'API Bible'}
+          Source: {scripture.version || 'Unknown'}
         </p>
       </div>
       
@@ -37,11 +44,13 @@ export default function ScripturePreview({ scripture }: ScripturePreviewProps) {
         <button className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
           Favorite
         </button>
-        <button className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200">
+        <button
+          onClick={handleBroadcast}
+          className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+        >
           Broadcast
         </button>
       </div>
     </div>
   )
 }
-

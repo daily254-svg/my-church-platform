@@ -1,6 +1,6 @@
 import { API_URL } from '../constants'
 
-export const ministryService = {
+export const ministryService = { 
   getAll: async (token: string) => {
     const response = await fetch(`${API_URL}/ministry`, {
       method: 'GET',

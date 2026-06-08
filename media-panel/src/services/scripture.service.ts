@@ -1,5 +1,7 @@
 import { API_URL } from '../utils/constants'
 
+export type BibleVersion = 'kjv' | 'nkjv' | 'web' | 'amp' | 'neno' | 'api-bible'
+
 export interface ScriptureResult {
   reference: string
   text: string
@@ -7,13 +9,14 @@ export interface ScriptureResult {
   chapter?: number
   verse?: number
   source: 'local' | 'api-bible'
+  version?: string
 }
 
 export const scriptureService = {
   /**
    * Search for scriptures
    */
-  search: async (query: string, version: 'kjv' | 'api-bible' = 'kjv'): Promise<ScriptureResult[]> => {
+  search: async (query: string, version: BibleVersion = 'kjv'): Promise<ScriptureResult[]> => {
     const response = await fetch(`${API_URL}/scripture/search?query=${encodeURIComponent(query)}&version=${version}`, {
       method: 'GET',
       headers: {
@@ -33,7 +36,7 @@ export const scriptureService = {
   /**
    * Get a specific scripture by reference
    */
-  getByReference: async (reference: string, version: 'kjv' | 'api-bible' = 'kjv'): Promise<ScriptureResult[]> => {
+  getByReference: async (reference: string, version: BibleVersion = 'kjv'): Promise<ScriptureResult[]> => {
     const response = await fetch(`${API_URL}/scripture/get?reference=${encodeURIComponent(reference)}&version=${version}`, {
       method: 'GET',
       headers: {

@@ -98,7 +98,7 @@ export default function GivingScreen() {
 
   const summaryItems: GivingSummary[] = [
     { label: "Category", value: category },
-    { label: "Amount", value: `$${amount}` },
+    { label: "Amount", value: `Ksh ${amount}` },
     { label: "Reference", value: reference || "—" },
     { label: "Service", value: service },
   ];
@@ -116,7 +116,7 @@ export default function GivingScreen() {
             <Text style={styles.successTitle}>Thank You!</Text>
             <Text style={styles.successDescription}>
               Your {category} of{" "}
-              <Text style={styles.successAmount}>${amount}</Text> has been
+              <Text style={styles.successAmount}>Ksh {amount}</Text> has been
               submitted successfully.
             </Text>
 
@@ -275,7 +275,7 @@ export default function GivingScreen() {
                       focusedField === "amount" && styles.inputFocused,
                     ]}
                   >
-                    <Text style={styles.dollarSign}>$</Text>
+                    <Text style={styles.dollarSign}>Ksh</Text>
                     <TextInput
                       style={styles.amountInput}
                       value={amount}
@@ -305,7 +305,7 @@ export default function GivingScreen() {
                       ]}
                       activeOpacity={0.7}
                       accessibilityRole="button"
-                      accessibilityLabel={`$${a}`}
+                      accessibilityLabel={`Ksh{a}`}
                     >
                       <Text
                         style={[
@@ -315,7 +315,7 @@ export default function GivingScreen() {
                           },
                         ]}
                       >
-                        ${a}
+                        Ksh{a}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -438,7 +438,7 @@ export default function GivingScreen() {
                   <Text style={styles.summaryLabel}>Summary</Text>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryCategory}>{category}</Text>
-                    <Text style={styles.summaryAmount}>${amount}</Text>
+                    <Text style={styles.summaryAmount}>Ksh{amount}</Text>
                   </View>
                 </View>
 
