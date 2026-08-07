@@ -1,8 +1,10 @@
+import fs from "fs";
 import { Request, Response } from "express";
 import { registerUser, loginUser, getCurrentUser, getRoleAvailability, savePushToken, updateAvatar as updateUserAvatar } from "./auth.service";
 import { registerSchema, loginSchema } from "./auth.validation";
 import { ZodError, ZodIssue } from "zod";
 import prisma from "../../config/db";
+import { uploadImage } from "../../config/cloudinary";
 
 const formatZodError = (err: ZodError) =>
   err.issues.map((e: ZodIssue) => ({ field: e.path.join("."), message: e.message }));
@@ -82,14 +84,23 @@ export const updatePushToken = async (req: Request, res: Response): Promise<void
 export const updateAvatar = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
     if (!req.file) {
       res.status(400).json({ success: false, message: 'No image file provided' });
       return;
     }
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
-    const user = await updateUserAvatar(userId, avatarUrl); // Use renamed import
-    
+    const folder = process.env.CLOUDINARY_FOLDER || "my-church-platform";
+    const uploadResult = await uploadImage(req.file.path, folder);
+    fs.unlink(req.file.path, () => {});
+
+    const avatarUrl = uploadResult.secure_url;
+    const user = await updateUserAvatar(userId, avatarUrl);
+
     res.json({ success: true, data: user });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update avatar';

@@ -38,8 +38,7 @@ export const profilePictureService = {
       const response = await fetch(`${API_URL}/auth/avatar`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -49,7 +48,11 @@ export const profilePictureService = {
         throw new Error(data.message || 'Upload failed');
       }
 
-      return `${API_URL}${data.data.avatarUrl}`;
+      const avatarUrl: string = data.data.avatarUrl;
+      if (avatarUrl.startsWith("http")) {
+        return avatarUrl;
+      }
+      return `${API_URL}${avatarUrl}`;
     } catch (err) {
       console.warn('[profile-picture] Upload failed:', err);
       throw err;

@@ -111,7 +111,7 @@ export default function ProfileScreen() {
       const avatarUrl = await profilePictureService.pickAndUpload();
       if (avatarUrl) {
         // Update the user context with new avatar
-        updateUser?.({ ...user!, avatarUrl: avatarUrl.replace(API_URL, '') });
+        updateUser?.({ ...user!, avatarUrl });
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to update profile picture');
