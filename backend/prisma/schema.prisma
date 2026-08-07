@@ -86,6 +86,7 @@ model User {
   feedLikes           FeedLike[]
   ministryMemberships MinistryMember[]
   ministryMessages    MinistryMessage[]
+  eventRegistrations  EventRegistration[]
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 }
@@ -172,12 +173,28 @@ model Giving {
 }
 
 model Event {
+  id                      String               @id @default(uuid())
+  title                   String
+  date                    String
+  time                    String
+  type                    String
+  accent                  String               @default("#1B3A7A")
+  acceptRegistration      Boolean              @default(false)
+  registrationTitle       String?
+  registrationDescription String?
+  registrationFields      Json?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  registrations           EventRegistration[]
+}
+
+model EventRegistration {
   id        String   @id @default(uuid())
-  title     String
-  date      String
-  time      String
-  type      String
-  accent    String   @default("#1B3A7A")
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  answers   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

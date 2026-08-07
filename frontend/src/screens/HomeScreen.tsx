@@ -16,6 +16,8 @@ import {
   StyleSheet,
   Dimensions,
   StatusBar,
+  Modal,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -43,11 +45,22 @@ const MINISTRY_AVATAR_SIZE = 56;
 const LIVE_BANNER_HEIGHT = 180;
 
 interface Event {
+  id: string;
   title: string;
   date: string;
   time: string;
   type: string;
   accent: string;
+  acceptRegistration?: boolean;
+  registrationTitle?: string | null;
+  registrationDescription?: string | null;
+  registrationFields?: Array<{
+    key: string;
+    label: string;
+    type: "text" | "email" | "tel" | "textarea" | "number";
+    required: boolean;
+    placeholder?: string;
+  }>;
 }
 
 interface Sermon {
@@ -89,7 +102,10 @@ export default function HomeScreen() {
   const [sermonsLoading, setSermonsLoading] = useState(true);
   const dailyScripture = getDailyScripture();
   const [myMinistries, setMyMinistries] = useState<{ id: string; name: string }[]>([]);
-  
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [registrationForm, setRegistrationForm] = useState<Record<string, string>>({});
+  const [submittingRegistration, setSubmittingRegistration] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -132,7 +148,14 @@ export default function HomeScreen() {
   const handleProfile = () => navigation.navigate("Profile");
   const handleSeeAllEvents = () => {};
   const handleSeeAllSermons = () => {};
-  const handleEventPress = (event: Event) => {};
+  const handleEventPress = (event: Event) => {
+    if (event.acceptRegistration) {
+      setSelectedEvent(event);
+      setRegistrationForm({});
+      setRegistrationMessage(null);
+      return;
+    }
+  };
   const handleSermonPress = (sermon: Sermon) => {};
   const handleAnnouncementPress = (announcement: any) => {};
 
@@ -243,6 +266,29 @@ export default function HomeScreen() {
       .map(w => w[0].toUpperCase())
       .slice(0, 2)
       .join('');
+  };
+
+  const handleRegistrationSubmit = async () => {
+    if (!selectedEvent) return;
+
+    const missingRequired = (selectedEvent.registrationFields ?? []).filter((field) => field.required && !registrationForm[field.key]?.trim());
+    if (missingRequired.length > 0) {
+      setRegistrationMessage("Please fill in the required fields.");
+      return;
+    }
+
+    try {
+      setSubmittingRegistration(true);
+      setRegistrationMessage(null);
+      await eventService.register(selectedEvent.id, registrationForm);
+      setRegistrationMessage("You’re registered! Thank you.");
+      setRegistrationForm({});
+      setSelectedEvent(null);
+    } catch (err) {
+      setRegistrationMessage(err instanceof Error ? err.message : "Unable to register right now.");
+    } finally {
+      setSubmittingRegistration(false);
+    }
   };
 
   return (
@@ -425,6 +471,11 @@ export default function HomeScreen() {
                     <Clock size={9} color="#7B7464" />
                     <Text style={styles.eventDetailText}>{event.time}</Text>
                   </View>
+                  {event.acceptRegistration && (
+                    <View style={styles.registrationBadge}>
+                      <Text style={styles.registrationBadgeText}>Register</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -604,6 +655,61 @@ export default function HomeScreen() {
             <Play size={22} fill="#FFFFFF" color="#FFFFFF" style={{ marginLeft: 2 }} />
           </TouchableOpacity>
         </Animated.View>
+        <Modal visible={!!selectedEvent} transparent animationType="slide" onRequestClose={() => setSelectedEvent(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>{selectedEvent?.registrationTitle || selectedEvent?.title || "Register"}</Text>
+                  {selectedEvent?.registrationDescription ? (
+                    <Text style={styles.modalDescription}>{selectedEvent.registrationDescription}</Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity onPress={() => setSelectedEvent(null)}>
+                  <Text style={styles.modalClose}>Close</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedEvent?.registrationFields?.map((field) => (
+                <View key={field.key} style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{field.label}{field.required ? " *" : ""}</Text>
+                  {field.type === "textarea" ? (
+                    <TextInput
+                      multiline
+                      value={registrationForm[field.key] ?? ""}
+                      onChangeText={(text) => setRegistrationForm((prev) => ({ ...prev, [field.key]: text }))}
+                      placeholder={field.placeholder}
+                      placeholderTextColor="#8C8579"
+                      style={[styles.textArea, styles.input]}
+                    />
+                  ) : (
+                    <TextInput
+                      value={registrationForm[field.key] ?? ""}
+                      onChangeText={(text) => setRegistrationForm((prev) => ({ ...prev, [field.key]: text }))}
+                      placeholder={field.placeholder}
+                      placeholderTextColor="#8C8579"
+                      keyboardType={field.type === "email" ? "email-address" : field.type === "number" ? "numeric" : field.type === "tel" ? "phone-pad" : "default"}
+                      style={styles.input}
+                    />
+                  )}
+                </View>
+              ))}
+
+              {registrationMessage ? (
+                <Text style={styles.registrationMessage}>{registrationMessage}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleRegistrationSubmit}
+                disabled={submittingRegistration}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.submitButtonText}>{submittingRegistration ? "Submitting..." : "Register"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
   );
 }
@@ -961,6 +1067,104 @@ const styles = StyleSheet.create({
   eventDetailText: {
     fontSize: 9,
     color: "#7B7464",
+    fontFamily: SANS,
+  },
+  registrationBadge: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#EDF0F8",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  registrationBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#1B3A7A",
+    fontFamily: SANS,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(5, 8, 15, 0.7)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+    maxHeight: "85%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0D1B3E",
+    fontFamily: SANS,
+    marginBottom: 4,
+  },
+  modalDescription: {
+    fontSize: 12,
+    color: "#7B7464",
+    fontFamily: SANS,
+    lineHeight: 18,
+  },
+  modalClose: {
+    fontSize: 12,
+    color: "#C4933A",
+    fontWeight: "600",
+    fontFamily: SANS,
+  },
+  inputGroup: {
+    marginTop: 10,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0D1B3E",
+    fontFamily: SANS,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E7E0D4",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#FAF7F1",
+    color: "#0D1B3E",
+    fontFamily: SANS,
+    fontSize: 13,
+  },
+  textArea: {
+    minHeight: 88,
+    textAlignVertical: "top",
+  },
+  registrationMessage: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#2D7A6A",
+    fontFamily: SANS,
+  },
+  submitButton: {
+    marginTop: 16,
+    borderRadius: 14,
+    backgroundColor: "#1B3A7A",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  submitButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
     fontFamily: SANS,
   },
   // Announcements Styles

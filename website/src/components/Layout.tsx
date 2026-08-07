@@ -150,6 +150,59 @@ const BottomGradient: React.FC = () => {
 
 // Main Components
 export const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mainElement = document.querySelector('main');
+
+    if (!mainElement) return;
+
+    const sections = Array.from(mainElement.querySelectorAll('section')) as HTMLElement[];
+
+    if (sections.length === 0) return;
+
+    if (reduceMotionQuery.matches) {
+      sections.forEach((section) => {
+        section.classList.remove('opacity-0', 'translate-y-8');
+        section.classList.add('opacity-100', 'translate-y-0');
+      });
+      return;
+    }
+
+    sections.forEach((section) => {
+      if (section.getAttribute('data-reveal') === 'true') return;
+
+      section.setAttribute('data-reveal', 'true');
+      section.classList.add('opacity-0', 'translate-y-8', 'transition-all', 'duration-700', 'ease-out');
+      section.style.willChange = 'opacity, transform';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.remove('opacity-0', 'translate-y-8');
+            entry.target.classList.add('opacity-100', 'translate-y-0');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.15,
+        rootMargin: '0px 0px -5% 0px',
+      }
+    );
+
+    sections.forEach((section) => {
+      if (section.getAttribute('data-reveal') === 'true') {
+        observer.observe(section);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div 
       className="min-h-screen" 

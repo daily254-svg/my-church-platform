@@ -9,6 +9,7 @@ import { GivingSection } from "../components/GivingSection";
 import { TestimonialsSection } from "../components/TestimonialSection";
 import { DownloadSection } from "../components/DownloadSection";
 import { PageLayout } from "../components/Layout";
+import { ScrollReveal } from "../components/ScrollReveal";
 
 // Types
 interface HomePageProps {
@@ -89,15 +90,33 @@ const HomePage: React.FC<HomePageProps> = ({ className }) => {
   return (
     <PageLayout>
       <div className={className} role="main" aria-label="Home page content">
-        <HeroSection />
-        <FeaturesSection />
-        <LiveServiceSection />
-        <MinistriesSection />
-        <SermonSection />
-        <LeadershipSection />
-        <GivingSection />
-        <TestimonialsSection />
-        <DownloadSection />
+        <ScrollReveal as="div" delay={0}>
+          <HeroSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <FeaturesSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <LiveServiceSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <MinistriesSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <SermonSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <LeadershipSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <GivingSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <TestimonialsSection />
+        </ScrollReveal>
+        <ScrollReveal as="div" delay={80}>
+          <DownloadSection />
+        </ScrollReveal>
       </div>
     </PageLayout>
   );

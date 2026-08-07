@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, Clock, Trash2, Send, Calendar, Palette, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Clock, Trash2, Send, Calendar, Palette, AlertTriangle, Users } from 'lucide-react'
 import type { Role } from '../../types/media.types'
 import { announcementService } from '../../services/announcement.service'
 import { eventService } from '../../services/event.service'
@@ -27,6 +27,27 @@ interface Event {
   time: string
   type: string
   accent: string
+  acceptRegistration?: boolean
+  registrationTitle?: string | null
+  registrationDescription?: string | null
+  registrationFields?: Array<{
+    key: string
+    label: string
+    type: 'text' | 'email' | 'tel' | 'textarea' | 'number'
+    required: boolean
+    placeholder?: string
+  }>
+  registrations?: Array<{
+    id: string
+    answers: Record<string, string | number | boolean | null>
+    createdAt: string
+    user?: {
+      id: string
+      name?: string | null
+      email?: string | null
+      phone?: string | null
+    } | null
+  }>
   createdAt: string
 }
 
@@ -48,10 +69,21 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
   const [eventTime, setEventTime] = useState('')
   const [eventType, setEventType] = useState('')
   const [eventAccent, setEventAccent] = useState('#1B3A7A')
+  const [acceptRegistration, setAcceptRegistration] = useState(false)
+  const [registrationTitle, setRegistrationTitle] = useState('')
+  const [registrationDescription, setRegistrationDescription] = useState('')
+  const [registrationFields, setRegistrationFields] = useState<Array<{
+    key: string
+    label: string
+    type: 'text' | 'email' | 'tel' | 'textarea' | 'number'
+    required: boolean
+    placeholder?: string
+  }>>([])
   const [eventCreating, setEventCreating] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [deletingPastEvents, setDeletingPastEvents] = useState(false)
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
 
   const categories = ['GENERAL', 'EVENT', 'EMERGENCY', 'PRAYER', 'OFFERING']
   const accentPresets = ['#1B3A7A', '#C4933A', '#2D7A6A', '#6B3A7A', '#EF4444']
@@ -174,6 +206,10 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
         time: eventTime,
         type: eventType,
         accent: eventAccent,
+        acceptRegistration,
+        registrationTitle: registrationTitle || null,
+        registrationDescription: registrationDescription || null,
+        registrationFields,
       })
       // Refetch to get the full list
       const data = await eventService.getAll()
@@ -184,6 +220,10 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
       setEventTime('')
       setEventType('')
       setEventAccent('#1B3A7A')
+      setAcceptRegistration(false)
+      setRegistrationTitle('')
+      setRegistrationDescription('')
+      setRegistrationFields([])
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create event'
       alert(message)
@@ -237,6 +277,27 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
   const isPastEvent = (event: Event): boolean => {
     const eventDateTime = new Date(`${event.date}T${event.time}`)
     return eventDateTime < new Date()
+  }
+
+  const addRegistrationField = () => {
+    setRegistrationFields((prev) => [
+      ...prev,
+      {
+        key: `field_${Date.now()}`,
+        label: 'New Field',
+        type: 'text',
+        required: false,
+        placeholder: '',
+      },
+    ])
+  }
+
+  const updateRegistrationField = (index: number, updates: Partial<(typeof registrationFields)[number]>) => {
+    setRegistrationFields((prev) => prev.map((field, fieldIndex) => fieldIndex === index ? { ...field, ...updates } : field))
+  }
+
+  const removeRegistrationField = (index: number) => {
+    setRegistrationFields((prev) => prev.filter((_, fieldIndex) => fieldIndex !== index))
   }
 
   // ── Loading state ──────────────────────────────────────
@@ -405,6 +466,95 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
                   {eventCreating ? 'Creating…' : 'Create Event'}
                 </button>
               </div>
+
+              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={acceptRegistration}
+                    onChange={(e) => setAcceptRegistration(e.target.checked)}
+                    className="h-4 w-4 rounded border-white/20 bg-transparent"
+                  />
+                  Accept registrations for this event
+                </label>
+
+                {acceptRegistration && (
+                  <div className="space-y-3">
+                    <input
+                      value={registrationTitle}
+                      onChange={(e) => setRegistrationTitle(e.target.value)}
+                      placeholder="Registration title"
+                      className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
+                    />
+                    <textarea
+                      value={registrationDescription}
+                      onChange={(e) => setRegistrationDescription(e.target.value)}
+                      placeholder="Tell attendees what they need to provide"
+                      rows={3}
+                      className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-blue-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
+                    />
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Custom fields</p>
+                      <button
+                        type="button"
+                        onClick={addRegistrationField}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300 hover:bg-white/10"
+                      >
+                        Add field
+                      </button>
+                    </div>
+
+                    {registrationFields.map((field, index) => (
+                      <div key={field.key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <input
+                            value={field.label}
+                            onChange={(e) => updateRegistrationField(index, { label: e.target.value })}
+                            placeholder="Field label"
+                            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeRegistrationField(index)}
+                            className="rounded-2xl border border-white/10 px-3 py-2 text-xs text-slate-400 hover:text-red-400"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <select
+                            value={field.type}
+                            onChange={(e) => updateRegistrationField(index, { type: e.target.value as typeof field.type })}
+                            className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                          >
+                            <option value="text">Text</option>
+                            <option value="email">Email</option>
+                            <option value="tel">Phone</option>
+                            <option value="textarea">Textarea</option>
+                            <option value="number">Number</option>
+                          </select>
+                          <input
+                            value={field.placeholder || ''}
+                            onChange={(e) => updateRegistrationField(index, { placeholder: e.target.value })}
+                            placeholder="Placeholder"
+                            className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-xs text-slate-400">
+                          <input
+                            type="checkbox"
+                            checked={field.required}
+                            onChange={(e) => updateRegistrationField(index, { required: e.target.checked })}
+                            className="h-4 w-4 rounded border-white/20 bg-transparent"
+                          />
+                          Required
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -530,10 +680,27 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
                           {event.type}
                         </span>
                       </div>
+                      {event.acceptRegistration && (
+                        <div className="mt-3 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                          Registration enabled
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {canCompose && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    {event.acceptRegistration && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedEventId((current) => current === event.id ? null : event.id)}
+                        className="rounded-2xl border border-white/10 px-3 py-2 text-xs text-slate-300 transition hover:bg-white/10"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Users className="w-3.5 h-3.5" />
+                          {event.registrations?.length ?? 0} regs
+                        </span>
+                      </button>
+                    )}
+                    {canCompose && (
                       <button
                         type="button"
                         onClick={() => setShowDeleteConfirm(event.id)}
@@ -542,9 +709,59 @@ export default function AnnouncementsPage({ role }: AnnouncementsPageProps) {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+
+                {event.acceptRegistration && expandedEventId === event.id && (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">Registrations</p>
+                      <span className="text-xs text-slate-400">{event.registrations?.length ?? 0} total</span>
+                    </div>
+                    {(!event.registrations || event.registrations.length === 0) ? (
+                      <p className="text-sm text-slate-500">No registrations yet for this event.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {event.registrations.map((registration) => (
+                          <div key={registration.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-white">
+                                  {registration.user?.name || registration.user?.email || 'Guest'}
+                                </p>
+                                {registration.user?.email && (
+                                  <p className="text-xs text-slate-400">{registration.user.email}</p>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500">
+                                {new Date(registration.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {Object.entries(registration.answers ?? {}).map(([key, value]) => {
+                                const field = event.registrationFields?.find((item) => item.key === key)
+                                const label = field?.label || key
+                                const displayValue = value === null || value === undefined || value === '' ? '—' : String(value)
+
+                                return (
+                                  <div key={key} className="flex flex-col gap-1 rounded-xl bg-white/[0.03] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{label}</span>
+                                    <span className="text-sm text-slate-200">{displayValue}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             

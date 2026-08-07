@@ -26,6 +26,16 @@ export const eventService = {
     time: string
     type: string
     accent?: string
+    acceptRegistration?: boolean
+    registrationTitle?: string | null
+    registrationDescription?: string | null
+    registrationFields?: Array<{
+      key: string
+      label: string
+      type: 'text' | 'email' | 'tel' | 'textarea' | 'number'
+      required: boolean
+      placeholder?: string
+    }>
   }) => {
     const token = useAuthStore.getState().token
     const response = await fetch(`${API_URL}/events`, {
