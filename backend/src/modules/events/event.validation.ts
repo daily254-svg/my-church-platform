@@ -25,7 +25,7 @@ export const createEventSchema = z.object({
 export const registerEventSchema = z.object({
   body: z.object({
     eventId: z.string().min(1, "Event is required"),
-    answers: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])),
+    answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
   }),
 });
 

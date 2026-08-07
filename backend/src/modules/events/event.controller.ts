@@ -50,7 +50,7 @@ export const deleteEvent = async (req: Request, res: Response): Promise<void> =>
 export const registerForEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = registerEventSchema.parse({ body: req.body });
-    const result = await registerForEventService(parsed.body, req.user?.id);
+    const result = await registerForEventService(parsed.body, req.user?.userId);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {
