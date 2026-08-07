@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "mychurchapp",
-    "slug": "my-church-app",
+    "slug": "my-church",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,10 +24,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "e02208a1-1b0f-4a45-bebb-b1ac87a2ab06"
+        "projectId": "2129aadc-9a03-4e7e-9af3-f4699be4cb9b"
       }
     },
-    "owner": "ben10ks-team",
+    "owner": "daily254s-team",
     "plugins": [
       "expo-font"
     ]
