@@ -6,11 +6,15 @@ import {
   deleteAnnouncement,
   type Announcement,
   type AnnouncementCategory,
+  type StaffRole,
 } from "../api";
 
 const CATEGORIES: AnnouncementCategory[] = ["GENERAL", "EVENT", "EMERGENCY", "PRAYER", "OFFERING"];
 
-export default function AnnouncementsSection({ token }: { token: string }) {
+// Backend restricts delete to PASTOR/ADMIN — SECRETARY can create/send but not delete.
+const CAN_DELETE: StaffRole[] = ["PASTOR", "ADMIN"];
+
+export default function AnnouncementsSection({ token, role }: { token: string; role: StaffRole }) {
   const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
@@ -111,9 +115,11 @@ export default function AnnouncementsSection({ token }: { token: string }) {
                   Send
                 </button>
               )}
-              <button className="btn-danger btn-small" onClick={() => remove(a.id)}>
-                Delete
-              </button>
+              {CAN_DELETE.includes(role) && (
+                <button className="btn-danger btn-small" onClick={() => remove(a.id)}>
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         ))}

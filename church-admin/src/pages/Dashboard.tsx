@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { clearToken, type AuthedUser } from "../api";
+import { useEffect, useState } from "react";
+import { clearToken, type AuthedUser, type StaffRole } from "../api";
+import { ROLE_SCREENS, type TabKey } from "../permissions";
 import MembersSection from "../sections/MembersSection";
 import MinistriesSection from "../sections/MinistriesSection";
 import EventsSection from "../sections/EventsSection";
@@ -16,7 +17,7 @@ interface Props {
   onLogout: () => void;
 }
 
-const TABS = [
+const ALL_TABS: { key: TabKey; label: string }[] = [
   { key: "members", label: "Members" },
   { key: "ministries", label: "Ministries" },
   { key: "events", label: "Events" },
@@ -26,12 +27,21 @@ const TABS = [
   { key: "prayers", label: "Prayers" },
   { key: "invites", label: "Invites" },
   { key: "branches", label: "Branches" },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
+];
 
 export default function Dashboard({ token, user, onLogout }: Props) {
-  const [tab, setTab] = useState<TabKey>("members");
+  const allowed = ROLE_SCREENS[user.role as StaffRole] ?? [];
+  const tabs = ALL_TABS.filter((t) => allowed.includes(t.key));
+  const [tab, setTab] = useState<TabKey>(tabs[0]?.key ?? "members");
+
+  // If the role (or its permitted screens) ever changes under us, don't
+  // strand the user on a tab they can no longer see.
+  useEffect(() => {
+    if (!allowed.includes(tab) && tabs[0]) {
+      setTab(tabs[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.role]);
 
   return (
     <div>
@@ -54,7 +64,7 @@ export default function Dashboard({ token, user, onLogout }: Props) {
       </div>
 
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.key} className={`tab ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
             {t.label}
           </button>
@@ -66,9 +76,9 @@ export default function Dashboard({ token, user, onLogout }: Props) {
         {tab === "ministries" && <MinistriesSection token={token} />}
         {tab === "events" && <EventsSection token={token} />}
         {tab === "sermons" && <SermonsSection token={token} />}
-        {tab === "announcements" && <AnnouncementsSection token={token} />}
+        {tab === "announcements" && <AnnouncementsSection token={token} role={user.role as StaffRole} />}
         {tab === "giving" && <GivingSection token={token} />}
-        {tab === "prayers" && <PrayersSection token={token} />}
+        {tab === "prayers" && <PrayersSection token={token} role={user.role as StaffRole} />}
         {tab === "invites" && <InvitesSection token={token} />}
         {tab === "branches" && <BranchesSection token={token} />}
       </div>

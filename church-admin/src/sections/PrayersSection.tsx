@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { listPrayers, deletePrayer, type Prayer } from "../api";
+import { listPrayers, deletePrayer, type Prayer, type StaffRole } from "../api";
 
-export default function PrayersSection({ token }: { token: string }) {
+export default function PrayersSection({ token, role }: { token: string; role: StaffRole }) {
   const [prayers, setPrayers] = useState<Prayer[] | null>(null);
   const [error, setError] = useState("");
 
@@ -39,11 +39,13 @@ export default function PrayersSection({ token }: { token: string }) {
             <span className="meta">· {p.category} · {p.prayerCount} prayed</span>
             <div className="body-text">{p.text}</div>
           </div>
-          <div className="actions">
-            <button className="btn-danger btn-small" onClick={() => remove(p.id)}>
-              Remove
-            </button>
-          </div>
+          {role === "ADMIN" && (
+            <div className="actions">
+              <button className="btn-danger btn-small" onClick={() => remove(p.id)}>
+                Remove
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
