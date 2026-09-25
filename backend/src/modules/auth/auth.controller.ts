@@ -1,7 +1,7 @@
 import fs from "fs";
 import { Request, Response } from "express";
-import { registerUser, loginUser, getCurrentUser, getRoleAvailability, savePushToken, updateAvatar as updateUserAvatar } from "./auth.service";
-import { registerSchema, loginSchema } from "./auth.validation";
+import { registerUser, loginUser, getCurrentUser, getRoleAvailability, savePushToken, updateAvatar as updateUserAvatar, setupTotp, enableTotp, verifyTotpLogin } from "./auth.service";
+import { registerSchema, loginSchema, totpCodeSchema } from "./auth.validation";
 import { ZodError, ZodIssue } from "zod";
 import prisma from "../../config/db";
 import { uploadImage } from "../../config/cloudinary";
@@ -35,6 +35,46 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const message = err instanceof Error ? err.message : "Login failed";
+    res.status(401).json({ success: false, message });
+  }
+};
+
+export const totpSetup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await setupTotp(req.preMfaUserId!);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not start TOTP setup";
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const totpEnable = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = totpCodeSchema.parse({ body: req.body });
+    const result = await enableTotp(req.preMfaUserId!, parsed.body.code);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(422).json({ success: false, errors: formatZodError(err) });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Could not enable TOTP";
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const totpVerify = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = totpCodeSchema.parse({ body: req.body });
+    const result = await verifyTotpLogin(req.preMfaUserId!, parsed.body.code);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(422).json({ success: false, errors: formatZodError(err) });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Invalid code";
     res.status(401).json({ success: false, message });
   }
 };

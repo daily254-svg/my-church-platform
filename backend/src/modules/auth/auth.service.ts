@@ -1,10 +1,16 @@
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
-import { generateToken } from "../../utils/jwt";
+import { generateToken, generatePreMfaToken } from "../../utils/jwt";
+import { generateTotpSecret, buildTotpQrCode, verifyTotpCode } from "../../utils/totp";
 import { RegisterInput, LoginInput } from "./auth.validation";
 
 const prisma = new PrismaClient();
 const SALT_ROUNDS = 12;
+
+// Leadership roles that manage a church's data — MFA is required for these,
+// not for ordinary MEMBER accounts (mobile app users), matching the same
+// distinction platform-admin already enforces.
+const STAFF_ROLES = ["ADMIN", "PASTOR", "SECRETARY", "MEDIA"] as const;
 
 export const registerUser = async (data: RegisterInput) => {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
@@ -60,15 +66,77 @@ export const loginUser = async (data: LoginInput) => {
     throw new Error("Invalid email or password");
   }
 
+  if (user.status === "SUSPENDED" || user.status === "REJECTED") {
+    throw new Error("This account no longer has access to the platform");
+  }
+
   const passwordMatch = await bcrypt.compare(data.password, user.password);
   if (!passwordMatch) {
     throw new Error("Invalid email or password");
+  }
+
+  if (STAFF_ROLES.includes(user.role as (typeof STAFF_ROLES)[number])) {
+    const preMfaToken = generatePreMfaToken(user.id);
+    return { preMfaToken, mfaSetupRequired: !user.totpEnabled };
   }
 
   const token = generateToken({ userId: user.id, email: user.email, role: user.role, churchId: user.churchId });
 
   const { password: _pw, ...safeUser } = user;
   return { user: safeUser, token };
+};
+
+export const setupTotp = async (userId: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new Error("Account not found");
+  }
+  if (user.totpEnabled) {
+    throw new Error("MFA is already enabled on this account");
+  }
+
+  const secret = generateTotpSecret();
+  await prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
+
+  const qrCode = await buildTotpQrCode(user.email, secret);
+  return { secret, qrCode };
+};
+
+export const enableTotp = async (userId: string, code: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.totpSecret) {
+    throw new Error("Run TOTP setup first");
+  }
+
+  const valid = await verifyTotpCode(code, user.totpSecret);
+  if (!valid) {
+    throw new Error("Invalid code");
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { totpEnabled: true },
+  });
+
+  const token = generateToken({ userId: updated.id, email: updated.email, role: updated.role, churchId: updated.churchId });
+  const { password: _pw, ...safeUser } = updated;
+  return { token, user: safeUser };
+};
+
+export const verifyTotpLogin = async (userId: string, code: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.totpEnabled || !user.totpSecret) {
+    throw new Error("MFA is not set up on this account");
+  }
+
+  const valid = await verifyTotpCode(code, user.totpSecret);
+  if (!valid) {
+    throw new Error("Invalid code");
+  }
+
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role, churchId: user.churchId });
+  const { password: _pw, ...safeUser } = user;
+  return { token, user: safeUser };
 };
 
 export const getCurrentUser = async (userId: string) => {

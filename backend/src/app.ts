@@ -9,6 +9,7 @@ import eventRoutes from "./modules/events/event.routes";
 import prayerRoutes from "./modules/prayers/prayer.routes";
 import feedRoutes from "./modules/feed/feed.routes";
 import ministryRoutes from "./modules/ministry/ministry.routes";
+import membersRoutes from "./modules/members/members.routes";
 import uploadRoutes from "./modules/upload/upload.routes";
 import scriptureRoutes from "./modules/scripture/scripture.routes";
 import { scriptureService } from "./modules/scripture/services/scripture.service";
@@ -49,7 +50,7 @@ app.use("/churches", churchRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-// app.use("/members", memberRoutes);  ← wire up next modules here
+app.use("/members", membersRoutes);
 
 // Health check
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

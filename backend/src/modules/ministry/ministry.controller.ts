@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import {
+  createGroup as createGroupService,
+  updateGroup as updateGroupService,
+  deleteGroup as deleteGroupService,
   getAllGroups as getAllGroupsService,
   joinGroup as joinGroupService,
   leaveGroup as leaveGroupService,
@@ -7,11 +10,68 @@ import {
   sendMessage as sendMessageService,
   getUserGroups as getUserGroupsService,
 } from './ministry.service';
-import { sendMessageSchema } from './ministry.validation';
+import { sendMessageSchema, createGroupSchema, updateGroupSchema } from './ministry.validation';
 import { ZodError, ZodIssue } from 'zod';
 
 const formatZodError = (err: ZodError) =>
   err.issues.map((e: ZodIssue) => ({ field: e.path.join('.'), message: e.message }));
+
+export const createGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = createGroupSchema.parse({ body: req.body });
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    const result = await createGroupService(churchId, parsed.body);
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(422).json({ success: false, errors: formatZodError(err) });
+      return;
+    }
+    const message = err instanceof Error ? err.message : 'Failed to create ministry';
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const updateGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const parsed = updateGroupSchema.parse({ body: req.body });
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    const result = await updateGroupService(groupId, churchId, parsed.body);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(422).json({ success: false, errors: formatZodError(err) });
+      return;
+    }
+    const message = err instanceof Error ? err.message : 'Failed to update ministry';
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const deleteGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    const result = await deleteGroupService(groupId, churchId);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete ministry';
+    res.status(400).json({ success: false, message });
+  }
+};
 
 export const getAllGroups = async (req: Request, res: Response): Promise<void> => {
   try {

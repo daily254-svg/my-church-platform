@@ -1,9 +1,8 @@
 import rateLimit from "express-rate-limit";
 
-// Tight limit on platform-admin auth — this is the login path for whoever
-// can approve/suspend churches across the whole platform, so brute-force
-// resistance matters more here than anywhere else in the app.
-export const platformAuthRateLimit = rateLimit({
+// Tight limit on any auth flow that can be brute-forced (platform-admin
+// login, church-member/staff login, church registration).
+export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: true,
@@ -11,7 +10,7 @@ export const platformAuthRateLimit = rateLimit({
   message: { success: false, message: "Too many attempts — try again later" },
 });
 
-export const platformApiRateLimit = rateLimit({
+export const apiRateLimit = rateLimit({
   windowMs: 60 * 1000,
   limit: 120,
   standardHeaders: true,

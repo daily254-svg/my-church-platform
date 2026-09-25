@@ -37,7 +37,7 @@ export const setupTotp = async (staffId: string) => {
   const secret = generateTotpSecret();
   await prisma.platformStaff.update({ where: { id: staffId }, data: { totpSecret: secret } });
 
-  const qrCode = await buildTotpQrCode(staff.email, secret);
+  const qrCode = await buildTotpQrCode(staff.email, secret, "My Church Platform Admin");
   return { secret, qrCode };
 };
 

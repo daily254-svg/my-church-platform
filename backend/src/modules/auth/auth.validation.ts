@@ -24,5 +24,12 @@ export const loginSchema = z.object({
   }),
 });
 
+export const totpCodeSchema = z.object({
+  body: z.object({
+    code: z.string().min(6, "Code must be 6 digits").max(6, "Code must be 6 digits"),
+  }),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>["body"];
 export type LoginInput = z.infer<typeof loginSchema>["body"];
+export type TotpCodeInput = z.infer<typeof totpCodeSchema>["body"];

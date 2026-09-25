@@ -19,6 +19,7 @@ enum UserStatus {
   ACTIVE
   PENDING
   SUSPENDED
+  REJECTED
 }
 
 enum ServiceState {
@@ -78,6 +79,8 @@ model User {
   role                Role                @default(MEMBER)
   status              UserStatus          @default(ACTIVE)
   requestedRole       Role?
+  totpSecret          String?
+  totpEnabled         Boolean             @default(false)
   churchId            String
   church              Church              @relation(fields: [churchId], references: [id])
   givings             Giving[]

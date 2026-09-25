@@ -4,14 +4,14 @@ import * as churchController from "./church.controller";
 import * as planController from "./plan.controller";
 import * as subscriptionController from "./subscription.controller";
 import { authenticatePlatform, requirePlatformRole } from "../../middleware/platform-auth.middleware";
-import { platformApiRateLimit } from "../../middleware/rate-limit.middleware";
+import { apiRateLimit } from "../../middleware/rate-limit.middleware";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 
 // Everything below requires a fully-authenticated (password + TOTP) platform token.
-router.use(platformApiRateLimit, authenticatePlatform);
+router.use(apiRateLimit, authenticatePlatform);
 
 // Churches — OWNER and SUPPORT can view/create, only OWNER can change lifecycle status.
 router.get("/churches", churchController.list);

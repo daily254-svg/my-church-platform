@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { broadcastMinistryMessage } from '../../sockets/ministry.events';
 import { Server as SocketServer } from 'socket.io';
+import { CreateGroupInput, UpdateGroupInput } from './ministry.validation';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,52 @@ export const provisionDefaultMinistryGroups = async (churchId: string) => {
   await prisma.ministryGroup.createMany({
     data: DEFAULT_MINISTRY_GROUPS.map((group) => ({ ...group, churchId })),
   });
+};
+
+export const createGroup = async (churchId: string, data: CreateGroupInput) => {
+  const existing = await prisma.ministryGroup.findUnique({
+    where: { churchId_name: { churchId, name: data.name } },
+  });
+  if (existing) {
+    throw new Error('A ministry with this name already exists');
+  }
+
+  return prisma.ministryGroup.create({
+    data: {
+      churchId,
+      name: data.name,
+      description: data.description ?? null,
+      accent: data.accent ?? '#1B3A7A',
+      imageUrl: data.imageUrl ?? null,
+    },
+  });
+};
+
+export const updateGroup = async (groupId: string, churchId: string, data: UpdateGroupInput) => {
+  const group = await prisma.ministryGroup.findFirst({ where: { id: groupId, churchId } });
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
+  return prisma.ministryGroup.update({
+    where: { id: groupId },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.accent !== undefined && { accent: data.accent }),
+      ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+    },
+  });
+};
+
+export const deleteGroup = async (groupId: string, churchId: string) => {
+  const group = await prisma.ministryGroup.findFirst({ where: { id: groupId, churchId } });
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
+  await prisma.ministryGroup.delete({ where: { id: groupId } });
+  return { message: 'Ministry deleted successfully' };
 };
 
 export const getAllGroups = async (churchId: string) => {
