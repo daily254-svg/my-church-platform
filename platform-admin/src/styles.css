@@ -197,3 +197,25 @@ button {
   font-size: 14px;
   padding: 12px 0;
 }
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+
+.item-row .meta {
+  color: #666;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.btn-small {
+  padding: 5px 10px;
+  font-size: 12px;
+}

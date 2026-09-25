@@ -68,7 +68,24 @@ export interface Plan {
   name: string;
   slug: string;
   maxBranches: number;
+  priceKES: number | null;
+  priceUSD: number | null;
+  isActive: boolean;
+  createdAt: string;
 }
+
+export const listPlans = (token: string) => request<Plan[]>("/platform-admin/plans", {}, token);
+
+export const createPlan = (
+  token: string,
+  data: { name: string; slug: string; maxBranches: number; priceKES?: number; priceUSD?: number },
+) => request<Plan>("/platform-admin/plans", { method: "POST", body: JSON.stringify(data) }, token);
+
+export const updatePlan = (
+  token: string,
+  id: string,
+  data: Partial<{ name: string; maxBranches: number; priceKES: number; priceUSD: number; isActive: boolean }>,
+) => request<Plan>(`/platform-admin/plans/${id}`, { method: "PATCH", body: JSON.stringify(data) }, token);
 
 export interface Subscription {
   id: string;
@@ -106,3 +123,15 @@ export const reactivateChurch = (token: string, id: string) =>
 
 export const cancelChurch = (token: string, id: string) =>
   request<Church>(`/platform-admin/churches/${id}/cancel`, { method: "POST" }, token);
+
+export const changeSubscriptionPlan = (token: string, churchId: string, planId: string) =>
+  request<Subscription>(`/platform-admin/churches/${churchId}/subscription/plan`, {
+    method: "PATCH",
+    body: JSON.stringify({ planId }),
+  }, token);
+
+export const changeSubscriptionStatus = (token: string, churchId: string, status: Subscription["status"]) =>
+  request<Subscription>(`/platform-admin/churches/${churchId}/subscription/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  }, token);
