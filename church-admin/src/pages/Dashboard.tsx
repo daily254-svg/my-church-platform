@@ -72,7 +72,7 @@ export default function Dashboard({ token, user, onLogout }: Props) {
       </div>
 
       <div className="container">
-        {tab === "members" && <MembersSection token={token} />}
+        {tab === "members" && <MembersSection token={token} role={user.role as StaffRole} />}
         {tab === "ministries" && <MinistriesSection token={token} />}
         {tab === "events" && <EventsSection token={token} />}
         {tab === "sermons" && <SermonsSection token={token} />}

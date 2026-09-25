@@ -13,7 +13,9 @@ router.post("/:userId/reject", authenticate, authorize([...LEADERSHIP]), reject)
 
 router.get("/", authenticate, authorize([...LEADERSHIP]), listActive);
 router.post("/leave", authenticate, leaveSelf);
-router.post("/:userId/mark-left", authenticate, authorize([...LEADERSHIP]), markLeft);
+// Narrower than the rest of LEADERSHIP — removing an active member is an
+// ADMIN/SECRETARY records action, not a pastoral one.
+router.post("/:userId/mark-left", authenticate, authorize(["ADMIN", "SECRETARY"]), markLeft);
 
 // Staff invites — ADMIN only, this is how new leadership seats are granted.
 router.get("/invites", authenticate, authorize(["ADMIN"]), listInvites);

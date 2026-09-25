@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
-import { listPendingMembers, listActiveMembers, approveMember, rejectMember, markMemberLeft, type PendingMember } from "../api";
+import { listPendingMembers, listActiveMembers, approveMember, rejectMember, markMemberLeft, type PendingMember, type StaffRole } from "../api";
 
-export default function MembersSection({ token }: { token: string }) {
+// Backend restricts mark-left to ADMIN/SECRETARY — removing an active
+// member is a records action, not a pastoral one.
+const CAN_MARK_LEFT: StaffRole[] = ["ADMIN", "SECRETARY"];
+
+export default function MembersSection({ token, role }: { token: string; role: StaffRole }) {
   const [pending, setPending] = useState<PendingMember[] | null>(null);
   const [active, setActive] = useState<PendingMember[] | null>(null);
   const [error, setError] = useState("");
@@ -82,17 +86,19 @@ export default function MembersSection({ token }: { token: string }) {
                 {m.phone ? ` · ${m.phone}` : ""}
               </div>
             </div>
-            <div className="actions">
-              <button
-                className="btn-danger btn-small"
-                disabled={busyId === m.id}
-                onClick={() => {
-                  if (confirm(`Mark ${m.name || m.email} as left?`)) run(m.id, markMemberLeft);
-                }}
-              >
-                Mark as left
-              </button>
-            </div>
+            {CAN_MARK_LEFT.includes(role) && (
+              <div className="actions">
+                <button
+                  className="btn-danger btn-small"
+                  disabled={busyId === m.id}
+                  onClick={() => {
+                    if (confirm(`Mark ${m.name || m.email} as left?`)) run(m.id, markMemberLeft);
+                  }}
+                >
+                  Mark as left
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
