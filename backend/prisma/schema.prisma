@@ -78,6 +78,8 @@ model User {
   role                Role                @default(MEMBER)
   status              UserStatus          @default(ACTIVE)
   requestedRole       Role?
+  churchId            String
+  church              Church              @relation(fields: [churchId], references: [id])
   givings             Giving[]
   prayers             Prayer[]
   sermonNotes         SermonNote[]
@@ -325,6 +327,7 @@ model Church {
   parentChurch    Church?       @relation("ChurchBranches", fields: [parentChurchId], references: [id])
   branches        Church[]      @relation("ChurchBranches")
   subscription    Subscription?
+  users           User[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }

@@ -13,6 +13,7 @@ export const registerSchema = z.object({
     gender: z.string().optional(),
     ministry: z.string().optional(),
     requestedRole: z.enum(["MEMBER", "MEDIA", "PASTOR", "SECRETARY", "ADMIN"]).optional(),
+    inviteCode: z.string().min(1, "A church invite code or link is required"),
   }),
 });
 

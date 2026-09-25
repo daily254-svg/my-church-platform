@@ -11,6 +11,7 @@ export interface TokenPayload {
   userId: string;
   email: string;
   role: string;
+  churchId: string;
 }
 
 export const generateToken = (payload: TokenPayload): string => {
@@ -24,5 +25,6 @@ export const verifyToken = (token: string): TokenPayload => {
     userId: decoded.userId,
     email: decoded.email,
     role: decoded.role,
+    churchId: decoded.churchId,
   };
 };

@@ -57,11 +57,16 @@ export const me = async (req: Request, res: Response): Promise<void> => {
 
 export const roleAvailability = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await getRoleAvailability();
+    const inviteCode = req.query.inviteCode as string | undefined;
+    if (!inviteCode) {
+      res.status(400).json({ success: false, message: "inviteCode query param is required" });
+      return;
+    }
+    const result = await getRoleAvailability(inviteCode);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not fetch role availability";
-    res.status(500).json({ success: false, message });
+    res.status(400).json({ success: false, message });
   }
 };
 

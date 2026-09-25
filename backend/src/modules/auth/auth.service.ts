@@ -12,6 +12,14 @@ export const registerUser = async (data: RegisterInput) => {
     throw new Error("An account with this email already exists");
   }
 
+  const church = await prisma.church.findUnique({ where: { inviteCode: data.inviteCode } });
+  if (!church) {
+    throw new Error("Invalid invite code or link");
+  }
+  if (church.status !== "ACTIVE") {
+    throw new Error("This church isn't accepting new members right now");
+  }
+
   const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
 
   // Role is always MEMBER on self-registration — never trust client input
@@ -25,7 +33,8 @@ export const registerUser = async (data: RegisterInput) => {
       ministry: data.ministry ?? null,
       requestedRole: data.requestedRole ?? null,
       role: "MEMBER",
-      status: data.requestedRole ? "PENDING" : "ACTIVE",
+      status: church.requireApproval || data.requestedRole ? "PENDING" : "ACTIVE",
+      churchId: church.id,
     },
     select: {
       id: true,
@@ -34,11 +43,12 @@ export const registerUser = async (data: RegisterInput) => {
       phone: true,
       ministry: true,
       role: true,
+      churchId: true,
       createdAt: true,
     },
   });
 
-  const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role, churchId: user.churchId });
 
   return { user, token };
 };
@@ -55,7 +65,7 @@ export const loginUser = async (data: LoginInput) => {
     throw new Error("Invalid email or password");
   }
 
-  const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role, churchId: user.churchId });
 
   const { password: _pw, ...safeUser } = user;
   return { user: safeUser, token };
@@ -71,6 +81,7 @@ export const getCurrentUser = async (userId: string) => {
       phone: true,
       ministry: true,
       role: true,
+      churchId: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -91,11 +102,18 @@ type RoleAvailability = {
   SECRETARY: { taken: boolean };
 };
 
-export const getRoleAvailability = async (): Promise<RoleAvailability> => {
+// Scoped per church — a taken PASTOR seat in one church says nothing about another.
+export const getRoleAvailability = async (inviteCode: string): Promise<RoleAvailability> => {
+  const church = await prisma.church.findUnique({ where: { inviteCode } });
+  if (!church) {
+    throw new Error("Invalid invite code or link");
+  }
+
   const counts = await Promise.all(
     ROLE_AVAILABILITY_ROLES.map((role) =>
       prisma.user.count({
         where: {
+          churchId: church.id,
           OR: [
             { role },
             { requestedRole: role },
