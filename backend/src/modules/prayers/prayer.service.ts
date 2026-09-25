@@ -3,9 +3,10 @@ import { CreatePrayerInput } from "./prayer.validation";
 
 const prisma = new PrismaClient();
 
-export const createPrayer = async (data: CreatePrayerInput, userId: string) => {
+export const createPrayer = async (data: CreatePrayerInput, userId: string, churchId: string) => {
   const prayer = await prisma.prayer.create({
     data: {
+      churchId,
       text: data.text,
       category: data.category || "Personal",
       isAnonymous: data.isAnonymous || false,
@@ -26,8 +27,9 @@ export const createPrayer = async (data: CreatePrayerInput, userId: string) => {
   };
 };
 
-export const getAllPrayers = async () => {
+export const getAllPrayers = async (churchId: string) => {
   const prayers = await prisma.prayer.findMany({
+    where: { churchId },
     orderBy: {
       createdAt: "desc",
     },
@@ -53,8 +55,13 @@ export const getAllPrayers = async () => {
   }));
 };
 
-export const prayForRequest = async (id: string) => {
-  const prayer = await prisma.prayer.update({
+export const prayForRequest = async (id: string, churchId: string) => {
+  const prayer = await prisma.prayer.findFirst({ where: { id, churchId } });
+  if (!prayer) {
+    throw new Error("Prayer request not found");
+  }
+
+  const updated = await prisma.prayer.update({
     where: { id },
     data: {
       prayerCount: {
@@ -71,14 +78,14 @@ export const prayForRequest = async (id: string) => {
   });
 
   return {
-    ...prayer,
-    user: prayer.isAnonymous ? { name: "Anonymous" } : prayer.user,
+    ...updated,
+    user: updated.isAnonymous ? { name: "Anonymous" } : updated.user,
   };
 };
 
-export const deletePrayer = async (id: string, userId: string) => {
-  const prayer = await prisma.prayer.findUnique({
-    where: { id },
+export const deletePrayer = async (id: string, userId: string, churchId: string) => {
+  const prayer = await prisma.prayer.findFirst({
+    where: { id, churchId },
   });
 
   if (!prayer) {

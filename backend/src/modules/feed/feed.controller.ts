@@ -18,11 +18,12 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     const parsed = createPostSchema.parse({ body: req.body });
     const userId = req.user?.userId;
     const userRole = req.user?.role;
-    if (!userId || !userRole) {
+    const churchId = req.user?.churchId;
+    if (!userId || !userRole || !churchId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
-    const result = await createPostService(parsed.body, userId, userRole);
+    const result = await createPostService(parsed.body, userId, userRole, churchId);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -36,8 +37,13 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user.id;
-    const result = await getAllPostsService(userId);
+    const userId = req.user?.userId;
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await getAllPostsService(userId, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch posts";
@@ -49,11 +55,12 @@ export const likePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
     const userId = req.user?.userId;
-    if (!userId) {
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
-    const result = await likePostService(postId, userId);
+    const result = await likePostService(postId, userId, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to like post";
@@ -66,11 +73,12 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     const { postId } = req.params;
     const parsed = createCommentSchema.parse({ body: req.body });
     const userId = req.user?.userId;
-    if (!userId) {
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
-    const result = await addCommentService(postId, parsed.body.text, userId);
+    const result = await addCommentService(postId, parsed.body.text, userId, churchId);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -85,7 +93,12 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
 export const getComments = async (req: Request, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
-    const result = await getCommentsService(postId);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await getCommentsService(postId, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch comments";
@@ -98,11 +111,12 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
     const { postId } = req.params;
     const userId = req.user?.userId;
     const userRole = req.user?.role;
-    if (!userId || !userRole) {
+    const churchId = req.user?.churchId;
+    if (!userId || !userRole || !churchId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
-    const result = await deletePostService(postId, userId, userRole);
+    const result = await deletePostService(postId, userId, userRole, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete post";

@@ -10,15 +10,16 @@ import { createGivingSchema } from './giving.validation';
 export const submitGiving = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
-    if (!userId) {
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized - user not found',
       });
     }
-    
+
     const parsed = createGivingSchema.parse(req.body);
-    const result = await createGiving(parsed, userId);
+    const result = await createGiving(parsed, userId, churchId);
 
     return res.status(201).json({
       success: true,
@@ -58,8 +59,12 @@ export const getMyGivings = async (req: Request, res: Response) => {
 
 export const getAllGivingsController = async (req: Request, res: Response) => {
   try {
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
     const { type, search } = req.query;
-    const result = await getAllGivings({
+    const result = await getAllGivings(churchId, {
       type: type as string | undefined,
       search: search as string | undefined,
     });
@@ -78,7 +83,11 @@ export const getAllGivingsController = async (req: Request, res: Response) => {
 
 export const getSummary = async (req: Request, res: Response) => {
   try {
-    const result = await getGivingSummary();
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const result = await getGivingSummary(churchId);
 
     return res.status(200).json({
       success: true,

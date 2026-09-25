@@ -1,5 +1,6 @@
 import prisma from "../../config/db";
 import { generateUniqueChurchSlug, generateInviteCode } from "../../utils/slug";
+import { provisionDefaultMinistryGroups } from "../ministry/ministry.service";
 import { CreateChurchInput } from "./church.validation";
 
 const TRIAL_DAYS = 30;
@@ -42,6 +43,8 @@ export const createChurch = async (input: CreateChurchInput) => {
       status: "PENDING_APPROVAL",
     },
   });
+
+  await provisionDefaultMinistryGroups(church.id);
 
   // Branches are covered by the mother church's subscription — only a
   // top-level church gets its own Subscription row.

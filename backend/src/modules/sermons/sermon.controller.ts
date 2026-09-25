@@ -8,7 +8,6 @@ import {
 
 export const createSermon = async (req: Request, res: Response) => {
   try {
-    // Validate request body
     const validation = createSermonSchema.safeParse(req);
     if (!validation.success) {
       res.status(400).json({
@@ -18,8 +17,14 @@ export const createSermon = async (req: Request, res: Response) => {
       return;
     }
 
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
     const pastorName = req.user?.email || "Unknown";
-    const result = await sermonService.createSermon(validation.data.body, pastorName);
+    const result = await sermonService.createSermon(validation.data.body, pastorName, churchId);
 
     res.status(201).json({ success: true, data: result });
   } catch (error: any) {
@@ -29,7 +34,12 @@ export const createSermon = async (req: Request, res: Response) => {
 
 export const getAllSermons = async (req: Request, res: Response) => {
   try {
-    const result = await sermonService.getAllSermons();
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await sermonService.getAllSermons(churchId);
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -39,7 +49,12 @@ export const getAllSermons = async (req: Request, res: Response) => {
 export const getSermonById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await sermonService.getSermonById(id);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await sermonService.getSermonById(id, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -49,8 +64,12 @@ export const getSermonById = async (req: Request, res: Response) => {
 export const updateSermon = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
 
-    // Validate request body
     const validation = updateSermonSchema.safeParse(req);
     if (!validation.success) {
       res.status(400).json({
@@ -60,7 +79,7 @@ export const updateSermon = async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await sermonService.updateSermon(id, validation.data.body);
+    const result = await sermonService.updateSermon(id, churchId, validation.data.body);
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -70,8 +89,12 @@ export const updateSermon = async (req: Request, res: Response) => {
 export const updateSermonStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
 
-    // Validate request body
     const validation = updateStatusSchema.safeParse(req);
     if (!validation.success) {
       res.status(400).json({
@@ -83,6 +106,7 @@ export const updateSermonStatus = async (req: Request, res: Response) => {
 
     const result = await sermonService.updateSermonStatus(
       id,
+      churchId,
       validation.data.body.status
     );
     res.status(200).json({ success: true, data: result });
@@ -94,7 +118,12 @@ export const updateSermonStatus = async (req: Request, res: Response) => {
 export const deleteSermon = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await sermonService.deleteSermon(id);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await sermonService.deleteSermon(id, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });

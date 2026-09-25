@@ -4,10 +4,11 @@ import { sendToUser } from '../../services/push.service';
 
 const prisma = new PrismaClient();
 
-export const createGiving = async (data: CreateGivingInput, userId: string) => {
+export const createGiving = async (data: CreateGivingInput, userId: string, churchId: string) => {
   const result = await prisma.giving.create({
     data: {
       ...data,
+      churchId,
       userId,
       status: 'CONFIRMED',
     },
@@ -54,12 +55,13 @@ export const getUserGivings = async (userId: string) => {
   return givings;
 };
 
-export const getAllGivings = async (filters?: {
+export const getAllGivings = async (churchId: string, filters?: {
   type?: string;
   search?: string;
 }) => {
   const givings = await prisma.giving.findMany({
     where: {
+      churchId,
       ...(filters?.type && { category: filters.type as GivingType }),
       ...(filters?.search && {
         user: {
@@ -86,8 +88,8 @@ export const getAllGivings = async (filters?: {
   return givings;
 };
 
-export const getGivingSummary = async () => {
-  const givings = await prisma.giving.findMany();
+export const getGivingSummary = async (churchId: string) => {
+  const givings = await prisma.giving.findMany({ where: { churchId } });
 
   const total = givings.reduce((sum, g) => sum + g.amount, 0);
   const titheTotal = givings

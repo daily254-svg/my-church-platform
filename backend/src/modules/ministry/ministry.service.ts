@@ -4,8 +4,26 @@ import { Server as SocketServer } from 'socket.io';
 
 const prisma = new PrismaClient();
 
-export const getAllGroups = async () => {
+const DEFAULT_MINISTRY_GROUPS = [
+  { name: 'Youth Ministry', description: 'Empowering the next generation', accent: '#F59E0B' },
+  { name: 'Worship Team', description: 'Leading hearts into worship', accent: '#8B5CF6' },
+  { name: 'Media Team', description: "Capturing and sharing God's glory", accent: '#10B981' },
+  { name: 'Men Fellowship', description: 'Brothers standing firm in faith', accent: '#1B3A7A' },
+  { name: 'Women Fellowship', description: 'Women of valor, grace and strength', accent: '#EC4899' },
+  { name: 'Children Ministry', description: 'Nurturing young hearts for Christ', accent: '#F97316' },
+];
+
+// Called once when a church is created — gives every new church a sensible
+// starting set of ministries instead of launching with none.
+export const provisionDefaultMinistryGroups = async (churchId: string) => {
+  await prisma.ministryGroup.createMany({
+    data: DEFAULT_MINISTRY_GROUPS.map((group) => ({ ...group, churchId })),
+  });
+};
+
+export const getAllGroups = async (churchId: string) => {
   return prisma.ministryGroup.findMany({
+    where: { churchId },
     select: {
       id: true,
       name: true,
@@ -23,9 +41,9 @@ export const getAllGroups = async () => {
   });
 };
 
-export const getGroupById = async (groupId: string) => {
-  const group = await prisma.ministryGroup.findUnique({
-    where: { id: groupId },
+export const getGroupById = async (groupId: string, churchId: string) => {
+  const group = await prisma.ministryGroup.findFirst({
+    where: { id: groupId, churchId },
     include: {
       _count: {
         select: {
@@ -42,10 +60,9 @@ export const getGroupById = async (groupId: string) => {
   return group;
 };
 
-export const joinGroup = async (groupId: string, userId: string) => {
-  // Verify group exists
-  const group = await prisma.ministryGroup.findUnique({
-    where: { id: groupId },
+export const joinGroup = async (groupId: string, userId: string, churchId: string) => {
+  const group = await prisma.ministryGroup.findFirst({
+    where: { id: groupId, churchId },
   });
 
   if (!group) {
@@ -80,10 +97,9 @@ export const leaveGroup = async (groupId: string, userId: string) => {
   return { left: true };
 };
 
-export const getGroupMessages = async (groupId: string) => {
-  // Verify group exists
-  const group = await prisma.ministryGroup.findUnique({
-    where: { id: groupId },
+export const getGroupMessages = async (groupId: string, churchId: string) => {
+  const group = await prisma.ministryGroup.findFirst({
+    where: { id: groupId, churchId },
   });
 
   if (!group) {
@@ -108,11 +124,20 @@ export const getGroupMessages = async (groupId: string) => {
 };
 
 export const sendMessage = async (
-  groupId: string, 
-  text: string, 
-  userId: string, 
+  groupId: string,
+  text: string,
+  userId: string,
+  churchId: string,
   io?: SocketServer
 ) => {
+  const group = await prisma.ministryGroup.findFirst({
+    where: { id: groupId, churchId },
+  });
+
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
   // Check if user is a member of the group
   const membership = await prisma.ministryMember.findFirst({
     where: {

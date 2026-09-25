@@ -3,9 +3,10 @@ import { CreateEventInput, RegisterEventInput } from "./event.validation";
 
 const prisma = new PrismaClient();
 
-export const createEvent = async (data: CreateEventInput) => {
+export const createEvent = async (data: CreateEventInput, churchId: string) => {
   const event = await prisma.event.create({
     data: {
+      churchId,
       title: data.title,
       date: data.date,
       time: data.time,
@@ -21,8 +22,9 @@ export const createEvent = async (data: CreateEventInput) => {
   return event;
 };
 
-export const getAllEvents = async () => {
+export const getAllEvents = async (churchId: string) => {
   const events = await prisma.event.findMany({
+    where: { churchId },
     orderBy: {
       createdAt: "desc",
     },
@@ -38,9 +40,9 @@ export const getAllEvents = async () => {
   return events;
 };
 
-export const deleteEvent = async (id: string) => {
-  const event = await prisma.event.findUnique({
-    where: { id },
+export const deleteEvent = async (id: string, churchId: string) => {
+  const event = await prisma.event.findFirst({
+    where: { id, churchId },
   });
 
   if (!event) {
@@ -54,9 +56,9 @@ export const deleteEvent = async (id: string) => {
   return event;
 };
 
-export const registerForEvent = async (data: RegisterEventInput, userId?: string) => {
-  const event = await prisma.event.findUnique({
-    where: { id: data.eventId },
+export const registerForEvent = async (data: RegisterEventInput, churchId: string, userId?: string) => {
+  const event = await prisma.event.findFirst({
+    where: { id: data.eventId, churchId },
   });
 
   if (!event) {

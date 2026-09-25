@@ -18,7 +18,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, any, SocketD
 const ALLOWED_ROLES = ["ADMIN", "PASTOR", "SECRETARY"];
 
 export const registerServiceEvents = (io: AppServer, socket: AppSocket) => {
-  const { role, email } = socket.data;
+  const { role, email, churchId } = socket.data;
 
   socket.on("service:start", (raw) => {
     if (!ALLOWED_ROLES.includes(role)) {
@@ -41,8 +41,8 @@ export const registerServiceEvents = (io: AppServer, socket: AppSocket) => {
         .to("role:MEDIA")
         .emit("service:start", enriched);
       
-      // Send push notification to all active users
-      sendToAll(prisma, {
+      // Send push notification to all active users in this church
+      sendToAll(prisma, churchId, {
         title: '⛪ Service is Live',
         body:  `${enriched.title} has started — join now`,
         data:  { type: 'service_start' },

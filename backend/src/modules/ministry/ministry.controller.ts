@@ -15,7 +15,12 @@ const formatZodError = (err: ZodError) =>
 
 export const getAllGroups = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await getAllGroupsService();
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    const result = await getAllGroupsService(churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch groups';
@@ -42,11 +47,12 @@ export const joinGroup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { groupId } = req.params;
     const userId = req.user?.userId;
-    if (!userId) {
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
-    const result = await joinGroupService(groupId, userId);
+    const result = await joinGroupService(groupId, userId, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to join group';
@@ -73,7 +79,12 @@ export const leaveGroup = async (req: Request, res: Response): Promise<void> => 
 export const getGroupMessages = async (req: Request, res: Response): Promise<void> => {
   try {
     const { groupId } = req.params;
-    const result = await getGroupMessagesService(groupId);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    const result = await getGroupMessagesService(groupId, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch messages';
@@ -86,12 +97,13 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
     const { groupId } = req.params;
     const parsed = sendMessageSchema.parse({ body: req.body });
     const userId = req.user?.userId;
-    if (!userId) {
+    const churchId = req.user?.churchId;
+    if (!userId || !churchId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
     const io = req.app.get('io');
-    const result = await sendMessageService(groupId, parsed.body.text, userId, io);
+    const result = await sendMessageService(groupId, parsed.body.text, userId, churchId, io);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {

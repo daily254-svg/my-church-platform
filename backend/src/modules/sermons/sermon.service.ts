@@ -3,9 +3,10 @@ import { CreateSermonInput, UpdateSermonInput } from "./sermon.validation";
 
 const prisma = new PrismaClient();
 
-export const createSermon = async (data: CreateSermonInput, pastorName: string) => {
+export const createSermon = async (data: CreateSermonInput, pastorName: string, churchId: string) => {
   const sermon = await prisma.sermon.create({
     data: {
+      churchId,
       title: data.title,
       description: data.description,
       scriptureList: data.scriptureList ?? [],
@@ -17,8 +18,9 @@ export const createSermon = async (data: CreateSermonInput, pastorName: string) 
   return sermon;
 };
 
-export const getAllSermons = async () => {
+export const getAllSermons = async (churchId: string) => {
   const sermons = await prisma.sermon.findMany({
+    where: { churchId },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -35,9 +37,9 @@ export const getAllSermons = async () => {
   return sermons;
 };
 
-export const getSermonById = async (id: string) => {
-  const sermon = await prisma.sermon.findUnique({
-    where: { id },
+export const getSermonById = async (id: string, churchId: string) => {
+  const sermon = await prisma.sermon.findFirst({
+    where: { id, churchId },
   });
 
   if (!sermon) {
@@ -47,10 +49,9 @@ export const getSermonById = async (id: string) => {
   return sermon;
 };
 
-export const updateSermon = async (id: string, data: UpdateSermonInput) => {
-  // First check if sermon exists
-  const existingSermon = await prisma.sermon.findUnique({
-    where: { id },
+export const updateSermon = async (id: string, churchId: string, data: UpdateSermonInput) => {
+  const existingSermon = await prisma.sermon.findFirst({
+    where: { id, churchId },
   });
 
   if (!existingSermon) {
@@ -70,9 +71,9 @@ export const updateSermon = async (id: string, data: UpdateSermonInput) => {
   return updatedSermon;
 };
 
-export const updateSermonStatus = async (id: string, status: string) => {
-  const existingSermon = await prisma.sermon.findUnique({
-    where: { id },
+export const updateSermonStatus = async (id: string, churchId: string, status: string) => {
+  const existingSermon = await prisma.sermon.findFirst({
+    where: { id, churchId },
   });
 
   if (!existingSermon) {
@@ -89,9 +90,9 @@ export const updateSermonStatus = async (id: string, status: string) => {
   return updatedSermon;
 };
 
-export const deleteSermon = async (id: string) => {
-  const existingSermon = await prisma.sermon.findUnique({
-    where: { id },
+export const deleteSermon = async (id: string, churchId: string) => {
+  const existingSermon = await prisma.sermon.findFirst({
+    where: { id, churchId },
   });
 
   if (!existingSermon) {

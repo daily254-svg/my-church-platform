@@ -14,7 +14,12 @@ const formatZodError = (err: ZodError) =>
 export const createEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = createEventSchema.parse({ body: req.body });
-    const result = await createEventService(parsed.body);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await createEventService(parsed.body, churchId);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -28,7 +33,12 @@ export const createEvent = async (req: Request, res: Response): Promise<void> =>
 
 export const getAllEvents = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await getAllEventsService();
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await getAllEventsService(churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch events";
@@ -39,7 +49,12 @@ export const getAllEvents = async (req: Request, res: Response): Promise<void> =
 export const deleteEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const result = await deleteEventService(id);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await deleteEventService(id, churchId);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete event";
@@ -50,7 +65,12 @@ export const deleteEvent = async (req: Request, res: Response): Promise<void> =>
 export const registerForEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = registerEventSchema.parse({ body: req.body });
-    const result = await registerForEventService(parsed.body, req.user?.userId);
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await registerForEventService(parsed.body, churchId, req.user?.userId);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {

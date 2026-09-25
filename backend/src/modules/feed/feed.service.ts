@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 export const createPost = async (
   data: CreatePostInput,
   userId: string,
-  userRole: string
+  userRole: string,
+  churchId: string
 ) => {
   if (data.type !== "TESTIMONY" && userRole === "MEMBER") {
     throw new Error("Only leadership can post this type");
@@ -14,6 +15,7 @@ export const createPost = async (
 
   const post = await prisma.feedPost.create({
     data: {
+      churchId,
       type: data.type,
       title: data.title,
       body: data.body,
@@ -33,8 +35,9 @@ export const createPost = async (
   return post;
 };
 
-export const getAllPosts = async (userId: string) => {
+export const getAllPosts = async (userId: string, churchId: string) => {
   const posts = await prisma.feedPost.findMany({
+    where: { churchId },
     orderBy: { createdAt: "desc" },
     include: {
       user: {
@@ -54,7 +57,12 @@ export const getAllPosts = async (userId: string) => {
   }));
 };
 
-export const likePost = async (postId: string, userId: string) => {
+export const likePost = async (postId: string, userId: string, churchId: string) => {
+  const post = await prisma.feedPost.findFirst({ where: { id: postId, churchId } });
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
   const existingLike = await prisma.feedLike.findUnique({
     where: {
       postId_userId: {
@@ -123,8 +131,14 @@ export const getPostLikeStatus = async (postId: string, userId: string) => {
 export const addComment = async (
   postId: string,
   text: string,
-  userId: string
+  userId: string,
+  churchId: string
 ) => {
+  const post = await prisma.feedPost.findFirst({ where: { id: postId, churchId } });
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
   const comment = await prisma.feedComment.create({
     data: {
       text,
@@ -152,7 +166,12 @@ export const addComment = async (
   return comment;
 };
 
-export const getComments = async (postId: string) => {
+export const getComments = async (postId: string, churchId: string) => {
+  const post = await prisma.feedPost.findFirst({ where: { id: postId, churchId } });
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
   const comments = await prisma.feedComment.findMany({
     where: { postId },
     orderBy: {
@@ -173,10 +192,11 @@ export const getComments = async (postId: string) => {
 export const deletePost = async (
   postId: string,
   userId: string,
-  userRole: string
+  userRole: string,
+  churchId: string
 ) => {
-  const post = await prisma.feedPost.findUnique({
-    where: { id: postId },
+  const post = await prisma.feedPost.findFirst({
+    where: { id: postId, churchId },
   });
 
   if (!post) {

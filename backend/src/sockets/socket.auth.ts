@@ -22,9 +22,10 @@ export const socketAuthMiddleware = (
     const decoded = verifyToken(token);
 
     (socket.data as SocketData) = {
-      userId: decoded.userId,
-      email:  decoded.email,
-      role:   decoded.role,
+      userId:   decoded.userId,
+      email:    decoded.email,
+      role:     decoded.role,
+      churchId: decoded.churchId,
     };
 
     next();

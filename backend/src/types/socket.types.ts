@@ -77,6 +77,7 @@ export interface SocketData {
   userId:         string;
   email:          string;
   role:           string;
+  churchId:       string;
   synced?:        boolean;
   region?:        string;
   connectionType?: string;

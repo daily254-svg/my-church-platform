@@ -95,7 +95,9 @@ model User {
 
 model MinistryGroup {
   id          String            @id @default(uuid())
-  name        String            @unique
+  churchId    String
+  church      Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name        String
   description String?
   accent      String            @default("#1B3A7A")
   imageUrl    String?
@@ -103,6 +105,8 @@ model MinistryGroup {
   updatedAt   DateTime          @updatedAt
   members     MinistryMember[]
   messages    MinistryMessage[]
+
+  @@unique([churchId, name])
 }
 
 model MinistryMember {
@@ -128,6 +132,8 @@ model MinistryMessage {
 
 model LiveService {
   id               String       @id @default(uuid())
+  churchId         String
+  church           Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
   currentScripture String?
   sermonTitle      String?
   state            ServiceState @default(OFFLINE)
@@ -139,6 +145,8 @@ model LiveService {
 
 model Sermon {
   id            String       @id @default(uuid())
+  churchId      String
+  church        Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
   title         String
   description   String?
   status        SermonStatus @default(DRAFT)
@@ -151,6 +159,8 @@ model Sermon {
 
 model Announcement {
   id          String               @id @default(uuid())
+  churchId    String
+  church      Church               @relation(fields: [churchId], references: [id], onDelete: Cascade)
   title       String
   body        String
   category    AnnouncementCategory @default(GENERAL)
@@ -162,6 +172,8 @@ model Announcement {
 
 model Giving {
   id        String       @id @default(uuid())
+  churchId  String
+  church    Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
   userId    String
   user      User         @relation(fields: [userId], references: [id])
   category  GivingType
@@ -176,6 +188,8 @@ model Giving {
 
 model Event {
   id                      String              @id @default(uuid())
+  churchId                String
+  church                  Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
   title                   String
   date                    String
   time                    String
@@ -203,6 +217,8 @@ model EventRegistration {
 
 model Prayer {
   id          String   @id @default(uuid())
+  churchId    String
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   text        String
@@ -215,6 +231,8 @@ model Prayer {
 
 model FeedPost {
   id            String        @id @default(uuid())
+  churchId      String
+  church        Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
   userId        String
   user          User          @relation(fields: [userId], references: [id])
   type          FeedPostType
@@ -313,23 +331,31 @@ model Plan {
 }
 
 model Church {
-  id              String        @id @default(uuid())
+  id              String          @id @default(uuid())
   name            String
-  slug            String        @unique
-  inviteCode      String        @unique
-  status          ChurchStatus  @default(PENDING_APPROVAL)
-  requireApproval Boolean       @default(false)
+  slug            String          @unique
+  inviteCode      String          @unique
+  status          ChurchStatus    @default(PENDING_APPROVAL)
+  requireApproval Boolean         @default(false)
   country         String?
   // Branches are Church rows pointing back at their mother church. Only a
   // church with no parentChurchId (a mother church) should carry a Subscription —
   // branches are covered by the parent's plan; enforced in the service layer.
   parentChurchId  String?
-  parentChurch    Church?       @relation("ChurchBranches", fields: [parentChurchId], references: [id])
-  branches        Church[]      @relation("ChurchBranches")
+  parentChurch    Church?         @relation("ChurchBranches", fields: [parentChurchId], references: [id])
+  branches        Church[]        @relation("ChurchBranches")
   subscription    Subscription?
   users           User[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  ministryGroups  MinistryGroup[]
+  liveServices    LiveService[]
+  sermons         Sermon[]
+  announcements   Announcement[]
+  givings         Giving[]
+  events          Event[]
+  prayers         Prayer[]
+  feedPosts       FeedPost[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
 model Subscription {

@@ -41,27 +41,29 @@ export const sendPushNotification = async (
   }
 }
 
-// Helper — send to all users with a push token
+// Helper — send to all users with a push token, within one church
 export const sendToAll = async (
   prisma: any,
+  churchId: string,
   payload: PushPayload
 ): Promise<void> => {
   const users = await prisma.user.findMany({
-    where:  { pushToken: { not: null }, status: 'ACTIVE' },
+    where:  { churchId, pushToken: { not: null }, status: 'ACTIVE' },
     select: { pushToken: true },
   })
   const tokens = users.map((u: any) => u.pushToken).filter(Boolean)
   await sendPushNotification(tokens, payload)
 }
 
-// Helper — send to specific roles
+// Helper — send to specific roles, within one church
 export const sendToRoles = async (
   prisma: any,
+  churchId: string,
   roles: string[],
   payload: PushPayload
 ): Promise<void> => {
   const users = await prisma.user.findMany({
-    where:  { role: { in: roles }, pushToken: { not: null }, status: 'ACTIVE' },
+    where:  { churchId, role: { in: roles }, pushToken: { not: null }, status: 'ACTIVE' },
     select: { pushToken: true },
   })
   const tokens = users.map((u: any) => u.pushToken).filter(Boolean)

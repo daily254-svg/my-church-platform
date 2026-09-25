@@ -4,9 +4,10 @@ import { sendToAll } from '../../services/push.service'
 
 const prisma = new PrismaClient();
 
-export const createAnnouncement = async (data: CreateAnnouncementInput) => {
+export const createAnnouncement = async (data: CreateAnnouncementInput, churchId: string) => {
   const announcement = await prisma.announcement.create({
     data: {
+      churchId,
       title: data.title,
       body: data.body,
       category: data.category,
@@ -18,17 +19,18 @@ export const createAnnouncement = async (data: CreateAnnouncementInput) => {
   return announcement;
 };
 
-export const getAllAnnouncements = async () => {
+export const getAllAnnouncements = async (churchId: string) => {
   const announcements = await prisma.announcement.findMany({
+    where: { churchId },
     orderBy: { createdAt: "desc" },
   });
 
   return announcements;
 };
 
-export const sendAnnouncement = async (id: string) => {
-  const announcement = await prisma.announcement.findUnique({
-    where: { id },
+export const sendAnnouncement = async (id: string, churchId: string) => {
+  const announcement = await prisma.announcement.findFirst({
+    where: { id, churchId },
   });
 
   if (!announcement) {
@@ -43,8 +45,8 @@ export const sendAnnouncement = async (id: string) => {
     },
   });
 
-  // Send push notification to all active users
-  await sendToAll(prisma, {
+  // Send push notification to all active users in this church
+  await sendToAll(prisma, churchId, {
     title: `📢 ${announcement.title}`,
     body:  announcement.body.slice(0, 100),
     data:  { type: 'announcement', id: announcement.id },
@@ -53,9 +55,9 @@ export const sendAnnouncement = async (id: string) => {
   return updatedAnnouncement;
 };
 
-export const deleteAnnouncement = async (id: string) => {
-  const existingAnnouncement = await prisma.announcement.findUnique({
-    where: { id },
+export const deleteAnnouncement = async (id: string, churchId: string) => {
+  const existingAnnouncement = await prisma.announcement.findFirst({
+    where: { id, churchId },
   });
 
   if (!existingAnnouncement) {
