@@ -20,6 +20,7 @@ enum UserStatus {
   PENDING
   SUSPENDED
   REJECTED
+  LEFT
 }
 
 enum ServiceState {
@@ -357,6 +358,7 @@ model Church {
   events          Event[]
   prayers         Prayer[]
   feedPosts       FeedPost[]
+  staffInvites    StaffInvite[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
@@ -372,4 +374,27 @@ model Subscription {
   currentPeriodEnd DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+}
+
+enum StaffInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model StaffInvite {
+  id          String            @id @default(uuid())
+  churchId    String
+  church      Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  email       String
+  name        String?
+  role        Role
+  token       String            @unique
+  status      StaffInviteStatus @default(PENDING)
+  invitedById String?
+  expiresAt   DateTime
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([churchId, email, status])
 }

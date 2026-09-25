@@ -66,7 +66,7 @@ export const loginUser = async (data: LoginInput) => {
     throw new Error("Invalid email or password");
   }
 
-  if (user.status === "SUSPENDED" || user.status === "REJECTED") {
+  if (user.status === "SUSPENDED" || user.status === "REJECTED" || user.status === "LEFT") {
     throw new Error("This account no longer has access to the platform");
   }
 
@@ -84,6 +84,42 @@ export const loginUser = async (data: LoginInput) => {
 
   const { password: _pw, ...safeUser } = user;
   return { user: safeUser, token };
+};
+
+export const acceptStaffInvite = async (token: string, password: string) => {
+  const invite = await prisma.staffInvite.findUnique({ where: { token } });
+  if (!invite || invite.status !== "PENDING") {
+    throw new Error("Invalid or already-used invite");
+  }
+  if (invite.expiresAt < new Date()) {
+    throw new Error("This invite has expired");
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: invite.email } });
+  if (existing) {
+    throw new Error("An account with this email already exists");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const [user] = await prisma.$transaction([
+    prisma.user.create({
+      data: {
+        name: invite.name,
+        email: invite.email,
+        password: hashedPassword,
+        role: invite.role,
+        status: "ACTIVE",
+        churchId: invite.churchId,
+      },
+      select: { id: true, name: true, email: true, role: true, churchId: true, createdAt: true },
+    }),
+    prisma.staffInvite.update({ where: { id: invite.id }, data: { status: "ACCEPTED" } }),
+  ]);
+
+  // No token here — staff logins always go through the normal MFA-gated
+  // /auth/login flow, invite acceptance is not an exception to that.
+  return user;
 };
 
 export const setupTotp = async (userId: string) => {

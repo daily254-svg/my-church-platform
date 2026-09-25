@@ -1,7 +1,7 @@
 import fs from "fs";
 import { Request, Response } from "express";
-import { registerUser, loginUser, getCurrentUser, getRoleAvailability, savePushToken, updateAvatar as updateUserAvatar, setupTotp, enableTotp, verifyTotpLogin } from "./auth.service";
-import { registerSchema, loginSchema, totpCodeSchema } from "./auth.validation";
+import { registerUser, loginUser, getCurrentUser, getRoleAvailability, savePushToken, updateAvatar as updateUserAvatar, setupTotp, enableTotp, verifyTotpLogin, acceptStaffInvite } from "./auth.service";
+import { registerSchema, loginSchema, totpCodeSchema, acceptInviteSchema } from "./auth.validation";
 import { ZodError, ZodIssue } from "zod";
 import prisma from "../../config/db";
 import { uploadImage } from "../../config/cloudinary";
@@ -36,6 +36,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
     const message = err instanceof Error ? err.message : "Login failed";
     res.status(401).json({ success: false, message });
+  }
+};
+
+export const acceptInvite = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = acceptInviteSchema.parse({ body: req.body });
+    const result = await acceptStaffInvite(parsed.body.token, parsed.body.password);
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(422).json({ success: false, errors: formatZodError(err) });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Could not accept invite";
+    res.status(400).json({ success: false, message });
   }
 };
 

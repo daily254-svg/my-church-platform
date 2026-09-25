@@ -13,7 +13,7 @@ type Stage =
   | { name: "denied" }
   | { name: "dashboard"; token: string; user: AuthedUser };
 
-export default function App() {
+export default function AuthenticatedApp() {
   const [stage, setStage] = useState<Stage>({ name: "loading" });
 
   useEffect(() => {

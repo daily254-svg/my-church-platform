@@ -73,6 +73,12 @@ export const totpVerify = (preMfaToken: string, code: string) =>
 
 export const me = (token: string) => request<AuthedUser>("/auth/me", {}, token);
 
+export const acceptInvite = (token: string, password: string) =>
+  request<{ id: string; email: string; role: Role }>("/auth/accept-invite", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
+
 // ── Members ───────────────────────────────────────────────────────
 
 export interface PendingMember {
@@ -92,6 +98,45 @@ export const approveMember = (token: string, userId: string) =>
   request<PendingMember>(`/members/${userId}/approve`, { method: "POST" }, token);
 export const rejectMember = (token: string, userId: string) =>
   request<PendingMember>(`/members/${userId}/reject`, { method: "POST" }, token);
+
+export const listActiveMembers = (token: string) => request<PendingMember[]>("/members", {}, token);
+export const markMemberLeft = (token: string, userId: string) =>
+  request<PendingMember>(`/members/${userId}/mark-left`, { method: "POST" }, token);
+
+// ── Staff invites ─────────────────────────────────────────────────
+
+export interface StaffInvite {
+  id: string;
+  email: string;
+  name: string | null;
+  role: StaffRole;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export const listInvites = (token: string) => request<StaffInvite[]>("/members/invites", {}, token);
+export const inviteStaff = (token: string, data: { email: string; name?: string; role: StaffRole }) =>
+  request<StaffInvite>("/members/invites", { method: "POST", body: JSON.stringify(data) }, token);
+export const revokeInvite = (token: string, inviteId: string) =>
+  request<StaffInvite>(`/members/invites/${inviteId}/revoke`, { method: "POST" }, token);
+
+// ── Branches ──────────────────────────────────────────────────────
+
+export interface Branch {
+  id: string;
+  name: string;
+  slug: string;
+  inviteCode: string;
+  status: string;
+  createdAt: string;
+}
+
+export const listBranches = (token: string) => request<Branch[]>("/churches/branches", {}, token);
+export const createBranch = (
+  token: string,
+  data: { name: string; country?: string; adminName: string; adminEmail: string; adminPassword: string },
+) => request<{ branch: Branch }>("/churches/branches", { method: "POST", body: JSON.stringify(data) }, token);
 
 // ── Ministries ────────────────────────────────────────────────────
 

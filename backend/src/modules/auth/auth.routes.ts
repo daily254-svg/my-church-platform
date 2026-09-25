@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, me, roleAvailability, updatePushToken, updateAvatar, validateRole, totpSetup, totpEnable, totpVerify } from "./auth.controller";
+import { register, login, me, roleAvailability, updatePushToken, updateAvatar, validateRole, totpSetup, totpEnable, totpVerify, acceptInvite } from "./auth.controller";
 import { authenticate, authenticatePreMfa } from "../../middleware/auth.middleware";
 import { upload } from "../../middleware/upload.middleware";
 import { authRateLimit } from "../../middleware/rate-limit.middleware";
@@ -11,6 +11,7 @@ router.post("/register", register);
 router.post("/login", authRateLimit, login);
 router.get("/role-availability", roleAvailability);
 router.post('/validate-role', authenticate, validateRole);
+router.post("/accept-invite", authRateLimit, acceptInvite);
 
 // MFA — reached with the preMfaToken login() returns for staff roles
 router.post("/totp/setup", authRateLimit, authenticatePreMfa, totpSetup);

@@ -7,6 +7,8 @@ import SermonsSection from "../sections/SermonsSection";
 import AnnouncementsSection from "../sections/AnnouncementsSection";
 import GivingSection from "../sections/GivingSection";
 import PrayersSection from "../sections/PrayersSection";
+import InvitesSection from "../sections/InvitesSection";
+import BranchesSection from "../sections/BranchesSection";
 
 interface Props {
   token: string;
@@ -22,6 +24,8 @@ const TABS = [
   { key: "announcements", label: "Announcements" },
   { key: "giving", label: "Giving" },
   { key: "prayers", label: "Prayers" },
+  { key: "invites", label: "Invites" },
+  { key: "branches", label: "Branches" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -65,6 +69,8 @@ export default function Dashboard({ token, user, onLogout }: Props) {
         {tab === "announcements" && <AnnouncementsSection token={token} />}
         {tab === "giving" && <GivingSection token={token} />}
         {tab === "prayers" && <PrayersSection token={token} />}
+        {tab === "invites" && <InvitesSection token={token} />}
+        {tab === "branches" && <BranchesSection token={token} />}
       </div>
     </div>
   );

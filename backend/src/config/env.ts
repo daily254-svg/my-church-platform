@@ -15,3 +15,12 @@ export const PLATFORM_JWT_SECRET = process.env.PLATFORM_JWT_SECRET || 'change-me
 export const PLATFORM_JWT_EXPIRES_IN = process.env.PLATFORM_JWT_EXPIRES_IN || '12h';
 // Short-lived token issued after password step, before TOTP is verified.
 export const PLATFORM_PRE_MFA_EXPIRES_IN = '5m';
+
+// Brevo (transactional email) — used for staff invites.
+export const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+export const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
+export const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'My Church Platform';
+// Where invite emails point people to — the church-admin app's URL. Left
+// blank in dev since Codespaces URLs are dynamic; the email still includes
+// the raw token so it can be pasted in manually.
+export const CHURCH_ADMIN_URL = process.env.CHURCH_ADMIN_URL || '';
