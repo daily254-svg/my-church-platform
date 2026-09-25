@@ -32,14 +32,15 @@ export const registerServiceEvents = (io: AppServer, socket: AppSocket) => {
         startedBy: email,
         startedAt: new Date().toISOString(),
       };
-      liveState.startService(enriched);
+      liveState.startService(churchId, enriched);
       console.log(`[socket] service:start — "${enriched.title}" by ${email}`);
-      // Leadership + media only
-      io.to("role:ADMIN")
-        .to("role:PASTOR")
-        .to("role:SECRETARY")
-        .to("role:MEDIA")
-        .emit("service:start", enriched);
+      // Leadership + media only, this church's only
+      io.to([
+        `church:${churchId}:role:ADMIN`,
+        `church:${churchId}:role:PASTOR`,
+        `church:${churchId}:role:SECRETARY`,
+        `church:${churchId}:role:MEDIA`,
+      ]).emit("service:start", enriched);
       
       // Send push notification to all active users in this church
       sendToAll(prisma, churchId, {
@@ -64,10 +65,10 @@ export const registerServiceEvents = (io: AppServer, socket: AppSocket) => {
         ...payload,
         endedAt: new Date().toISOString(),
       };
-      liveState.endService(enriched);
+      liveState.endService(churchId, enriched);
       console.log(`[socket] service:end — "${enriched.title}" by ${email}`);
-      // Notify everyone — service has ended
-      io.emit("service:end", enriched);
+      // Notify everyone in this church — service has ended
+      io.to(`church:${churchId}`).emit("service:end", enriched);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Invalid payload";
       console.warn(`[socket] service:end error from ${email}: ${msg}`);

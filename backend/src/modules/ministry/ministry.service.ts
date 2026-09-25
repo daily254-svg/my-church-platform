@@ -215,7 +215,7 @@ export const sendMessage = async (
   // Broadcast message to group room if io instance is available
   if (io && typeof broadcastMinistryMessage === 'function') {
     try {
-      broadcastMinistryMessage(io as any, groupId, {
+      broadcastMinistryMessage(io as any, churchId, groupId, {
         id: message.id,
         text: message.text,
         createdAt: message.createdAt.toISOString(),

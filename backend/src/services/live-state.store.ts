@@ -10,7 +10,7 @@ export interface LiveServiceState {
   lastUpdated: string;
 }
 
-const initialState: LiveServiceState = {
+const initialState = (): LiveServiceState => ({
   isLive: false,
   serviceId: null,
   serviceTitle: null,
@@ -18,19 +18,30 @@ const initialState: LiveServiceState = {
   startedAt: null,
   currentScripture: null,
   lastUpdated: new Date().toISOString(),
+});
+
+// One live-service state per church — churches must never see or affect
+// each other's live sermon/scripture sync. In-memory Map, swap for Redis
+// later without changing this interface.
+const stateByChurch = new Map<string, LiveServiceState>();
+
+const getOrInit = (churchId: string): LiveServiceState => {
+  let state = stateByChurch.get(churchId);
+  if (!state) {
+    state = initialState();
+    stateByChurch.set(churchId, state);
+  }
+  return state;
 };
 
-// In-memory store — swap for Redis later without changing the interface
-let state: LiveServiceState = { ...initialState };
-
 export const liveState = {
-  get(): LiveServiceState {
-    return { ...state };
+  get(churchId: string): LiveServiceState {
+    return { ...getOrInit(churchId) };
   },
 
-  startService(payload: ServicePayload): LiveServiceState {
-    state = {
-      ...state,
+  startService(churchId: string, payload: ServicePayload): LiveServiceState {
+    const next: LiveServiceState = {
+      ...getOrInit(churchId),
       isLive: true,
       serviceId: payload.serviceId,
       serviceTitle: payload.title,
@@ -38,29 +49,32 @@ export const liveState = {
       startedAt: payload.startedAt ?? new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
     };
-    return this.get();
+    stateByChurch.set(churchId, next);
+    return { ...next };
   },
 
-  endService(payload: ServicePayload): LiveServiceState {
-    state = {
-      ...state,
+  endService(churchId: string, payload: ServicePayload): LiveServiceState {
+    const next: LiveServiceState = {
+      ...getOrInit(churchId),
       isLive: false,
       serviceId: payload.serviceId,
       lastUpdated: new Date().toISOString(),
     };
-    return this.get();
+    stateByChurch.set(churchId, next);
+    return { ...next };
   },
 
-  updateScripture(payload: ScripturePayload): LiveServiceState {
-    state = {
-      ...state,
+  updateScripture(churchId: string, payload: ScripturePayload): LiveServiceState {
+    const next: LiveServiceState = {
+      ...getOrInit(churchId),
       currentScripture: payload,
       lastUpdated: new Date().toISOString(),
     };
-    return this.get();
+    stateByChurch.set(churchId, next);
+    return { ...next };
   },
 
-  reset(): void {
-    state = { ...initialState };
+  reset(churchId: string): void {
+    stateByChurch.delete(churchId);
   },
 };

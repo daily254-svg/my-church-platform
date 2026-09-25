@@ -14,7 +14,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, any, SocketD
 const ALLOWED_ROLES = ["ADMIN", "PASTOR", "MEDIA"];
 
 export const registerScriptureEvents = (io: AppServer, socket: AppSocket) => {
-  const { role, email } = socket.data;
+  const { role, email, churchId } = socket.data;
 
   socket.on("scripture:update", (raw) => {
     if (!ALLOWED_ROLES.includes(role)) {
@@ -23,15 +23,10 @@ export const registerScriptureEvents = (io: AppServer, socket: AppSocket) => {
     }
     try {
       const payload = validate(scripturePayloadSchema, raw);
-      liveState.updateScripture(payload);
+      liveState.updateScripture(churchId, payload);
       console.log(`[socket] scripture:update — ${payload.reference} by ${email}`);
-      // Congregation + leadership + media — not admin-only tools
-      io.to("role:MEMBER")
-        .to("role:MEDIA")
-        .to("role:PASTOR")
-        .to("role:SECRETARY")
-        .to("role:ADMIN")
-        .emit("scripture:update", payload);
+      // Everyone in this church — congregation + leadership + media
+      io.to(`church:${churchId}`).emit("scripture:update", payload);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Invalid payload";
       console.warn(`[socket] scripture:update error from ${email}: ${msg}`);
