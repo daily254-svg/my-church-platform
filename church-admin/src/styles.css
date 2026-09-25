@@ -1,0 +1,315 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f6f8;
+  color: #1a1a1a;
+}
+
+.center-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 28px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card h1 {
+  font-size: 20px;
+  margin: 0 0 20px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 4px;
+}
+
+input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input[type="checkbox"] {
+  width: auto;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: #1b3a7a;
+  color: white;
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.hint {
+  color: #666;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.qr-box {
+  text-align: center;
+  margin: 16px 0;
+}
+
+.qr-box img {
+  width: 180px;
+  height: 180px;
+}
+
+.secret {
+  font-family: monospace;
+  background: #f0f1f3;
+  padding: 6px 8px;
+  border-radius: 4px;
+  word-break: break-all;
+  font-size: 13px;
+}
+
+/* Dashboard */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 14px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.topbar strong { font-size: 16px; }
+
+.btn-secondary {
+  background: #eee;
+  color: #333;
+}
+
+.container {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.section h2 {
+  font-size: 16px;
+  margin: 0 0 14px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-row > div { flex: 1; min-width: 160px; }
+
+.church-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.church-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.church-meta {
+  color: #666;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.badge-PENDING_APPROVAL { background: #fef3c7; color: #92400e; }
+.badge-ACTIVE { background: #d1fae5; color: #065f46; }
+.badge-SUSPENDED { background: #fee2e2; color: #991b1b; }
+.badge-CANCELLED { background: #e5e7eb; color: #374151; }
+.badge-TRIALING { background: #dbeafe; color: #1e40af; }
+.badge-PAST_DUE { background: #fed7aa; color: #9a3412; }
+.badge-DISABLED { background: #e5e7eb; color: #374151; }
+
+.actions { display: flex; gap: 8px; }
+
+.branches {
+  margin-top: 10px;
+  padding-left: 16px;
+  border-left: 2px solid #eee;
+}
+
+.empty {
+  color: #888;
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+/* Dashboard tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 24px;
+  background: white;
+  border-bottom: 1px solid #eee;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+
+.tab.active {
+  color: #1b3a7a;
+  border-bottom-color: #1b3a7a;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.section-header h2 { margin: 0; }
+
+textarea, select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+textarea { resize: vertical; min-height: 70px; }
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+
+.item-row .meta {
+  color: #666;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.item-row .body-text {
+  font-size: 14px;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+
+.btn-small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-tile {
+  background: #f8f9fb;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.stat-tile .value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.stat-tile .label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.badge-DRAFT { background: #e5e7eb; color: #374151; }
+.badge-READY { background: #dbeafe; color: #1e40af; }
+.badge-DELIVERED { background: #d1fae5; color: #065f46; }
+.badge-GENERAL { background: #e5e7eb; color: #374151; }
+.badge-EVENT { background: #dbeafe; color: #1e40af; }
+.badge-EMERGENCY { background: #fee2e2; color: #991b1b; }
+.badge-PRAYER { background: #ede9fe; color: #5b21b6; }
+.badge-OFFERING { background: #fef3c7; color: #92400e; }
+.badge-PENDING { background: #fef3c7; color: #92400e; }
+.badge-CONFIRMED { background: #d1fae5; color: #065f46; }
+.badge-REJECTED { background: #fee2e2; color: #991b1b; }

@@ -72,11 +72,12 @@ export const deletePrayer = async (req: Request, res: Response): Promise<void> =
     const { id } = praySchema.parse({ params: req.params }).params;
     const userId = req.user?.userId;
     const churchId = req.user?.churchId;
-    if (!userId || !churchId) {
+    const userRole = req.user?.role;
+    if (!userId || !churchId || !userRole) {
       res.status(401).json({ success: false, message: "Unauthorized" });
       return;
     }
-    const result = await deletePrayerService(id, userId, churchId);
+    const result = await deletePrayerService(id, userId, churchId, userRole);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     if (err instanceof ZodError) {

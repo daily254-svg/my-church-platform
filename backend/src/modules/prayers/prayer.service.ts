@@ -83,7 +83,7 @@ export const prayForRequest = async (id: string, churchId: string) => {
   };
 };
 
-export const deletePrayer = async (id: string, userId: string, churchId: string) => {
+export const deletePrayer = async (id: string, userId: string, churchId: string, userRole: string) => {
   const prayer = await prisma.prayer.findFirst({
     where: { id, churchId },
   });
@@ -92,7 +92,7 @@ export const deletePrayer = async (id: string, userId: string, churchId: string)
     throw new Error("Prayer request not found");
   }
 
-  if (prayer.userId !== userId) {
+  if (prayer.userId !== userId && userRole !== "ADMIN") {
     throw new Error("Not authorized");
   }
 
