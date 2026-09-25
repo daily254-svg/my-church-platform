@@ -4,12 +4,16 @@ import {
   type Staff,
   type Plan,
   type Subscription,
+  type DeletionQueueEntry,
   listChurches,
   createChurch,
   approveChurch,
   suspendChurch,
   reactivateChurch,
   cancelChurch,
+  exportChurchNow,
+  getDeletionQueue,
+  processDeletions,
   changeSubscriptionPlan,
   changeSubscriptionStatus,
   listPlans,
@@ -138,6 +142,16 @@ function ChurchRow({ church, token, plans, indent, onChanged }: { church: Church
           {church.status === "SUSPENDED" && (
             <button className="btn-primary" disabled={busy} onClick={() => run(reactivateChurch)}>Reactivate</button>
           )}
+          {church.status === "CANCELLED" && (
+            <>
+              <button className="btn-primary" disabled={busy} onClick={() => run(reactivateChurch)}>
+                Undo cancel
+              </button>
+              <button className="btn-secondary" disabled={busy} onClick={() => run(exportChurchNow)}>
+                Export data
+              </button>
+            </>
+          )}
           {church.status !== "CANCELLED" && (
             <button
               className="btn-secondary"
@@ -155,6 +169,7 @@ function ChurchRow({ church, token, plans, indent, onChanged }: { church: Church
         slug: {church.slug} · invite code: <code>{church.inviteCode}</code>
         {church.country ? ` · ${church.country}` : ""}
         {church.subscription?.trialEndsAt ? ` · trial ends ${new Date(church.subscription.trialEndsAt).toLocaleDateString()}` : ""}
+        {church.cancelledAt ? ` · cancelled ${new Date(church.cancelledAt).toLocaleDateString()}` : ""}
       </div>
       {error && <div className="error">{error}</div>}
 
@@ -269,6 +284,70 @@ function PlanRow({ plan, token, onChanged }: { plan: Plan; token: string; onChan
           {plan.isActive ? "Deactivate" : "Activate"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function DeletionQueueSection({ token }: { token: string }) {
+  const [queue, setQueue] = useState<DeletionQueueEntry[] | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+
+  const refresh = () => {
+    getDeletionQueue(token)
+      .then(setQueue)
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load deletion queue"));
+  };
+
+  useEffect(refresh, [token]);
+
+  const runSweep = async () => {
+    setBusy(true);
+    setError("");
+    setResult("");
+    try {
+      const res = await processDeletions(token);
+      const parts: string[] = [];
+      if (res.deleted.length) parts.push(`Deleted: ${res.deleted.map((c) => c.name).join(", ")}`);
+      if (res.skipped.length) parts.push(`Skipped: ${res.skipped.map((c) => `${c.name} (${c.reason})`).join(", ")}`);
+      setResult(parts.length ? parts.join(" — ") : "Nothing due for deletion.");
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not process deletions");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="section">
+      <div className="section-header">
+        <h2>Deletion queue</h2>
+        <button className="btn-secondary btn-small" disabled={busy} onClick={runSweep}>
+          {busy ? "Processing..." : "Process due deletions now"}
+        </button>
+      </div>
+      <p className="hint">
+        Cancelled churches are permanently deleted 14 days after cancellation. This runs automatically every 12
+        hours, or trigger it manually here (useful since this dev environment doesn't stay up continuously).
+      </p>
+      {error && <div className="error">{error}</div>}
+      {result && <div className="hint">{result}</div>}
+      {queue === null && <div className="empty">Loading...</div>}
+      {queue?.length === 0 && <div className="empty">No churches pending deletion.</div>}
+      {queue?.map((entry) => (
+        <div key={entry.id} className="item-row">
+          <div>
+            <strong>{entry.name}</strong>
+            <div className="meta">
+              Cancelled {new Date(entry.cancelledAt).toLocaleDateString()} · deletes{" "}
+              {new Date(entry.deletesAt).toLocaleDateString()} ({entry.daysRemaining} days left)
+              {entry.blockedByBranches ? " · blocked — still has branches" : ""}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -451,6 +530,8 @@ export default function Dashboard({ token, staff, onLogout }: Props) {
             <PlanRow key={plan.id} plan={plan} token={token} onChanged={refreshPlans} />
           ))}
         </div>
+
+        <DeletionQueueSection token={token} />
       </div>
     </div>
   );

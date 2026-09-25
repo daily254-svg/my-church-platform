@@ -21,6 +21,11 @@ router.post("/churches/:id/approve", requirePlatformRole(["OWNER"]), churchContr
 router.post("/churches/:id/suspend", requirePlatformRole(["OWNER"]), churchController.suspend);
 router.post("/churches/:id/reactivate", requirePlatformRole(["OWNER"]), churchController.reactivate);
 router.post("/churches/:id/cancel", requirePlatformRole(["OWNER"]), churchController.cancel);
+router.post("/churches/:id/export", requirePlatformRole(["OWNER"]), churchController.exportChurch);
+
+// Deletion lifecycle — 14 days after cancellation.
+router.get("/maintenance/deletion-queue", requirePlatformRole(["OWNER"]), churchController.deletionQueue);
+router.post("/maintenance/process-deletions", requirePlatformRole(["OWNER"]), churchController.processDeletions);
 
 // Plans — pricing/capacity changes are OWNER-only.
 router.get("/plans", planController.list);

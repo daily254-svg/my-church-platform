@@ -102,6 +102,7 @@ export interface Church {
   status: "PENDING_APPROVAL" | "ACTIVE" | "SUSPENDED" | "CANCELLED";
   requireApproval: boolean;
   country: string | null;
+  cancelledAt: string | null;
   subscription: Subscription | null;
   branches: Church[];
   createdAt: string;
@@ -135,3 +136,26 @@ export const changeSubscriptionStatus = (token: string, churchId: string, status
     method: "PATCH",
     body: JSON.stringify({ status }),
   }, token);
+
+export const exportChurchNow = (token: string, id: string) =>
+  request<Church>(`/platform-admin/churches/${id}/export`, { method: "POST" }, token);
+
+export interface DeletionQueueEntry {
+  id: string;
+  name: string;
+  cancelledAt: string;
+  deletesAt: string;
+  daysRemaining: number;
+  blockedByBranches: boolean;
+}
+
+export const getDeletionQueue = (token: string) =>
+  request<DeletionQueueEntry[]>("/platform-admin/maintenance/deletion-queue", {}, token);
+
+export interface ProcessDeletionsResult {
+  deleted: { id: string; name: string }[];
+  skipped: { id: string; name: string; reason: string }[];
+}
+
+export const processDeletions = (token: string) =>
+  request<ProcessDeletionsResult>("/platform-admin/maintenance/process-deletions", { method: "POST" }, token);

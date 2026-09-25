@@ -8,6 +8,9 @@ import {
   suspendChurch,
   reactivateChurch,
   cancelChurch,
+  exportNow,
+  listDeletionQueue,
+  processDueDeletions,
 } from "./church.service";
 import { createChurchSchema } from "./church.validation";
 
@@ -86,5 +89,35 @@ export const cancel = async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not cancel church";
     res.status(400).json({ success: false, message });
+  }
+};
+
+export const exportChurch = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const church = await exportNow(req.params.id);
+    res.status(200).json({ success: true, data: church });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not export church data";
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const deletionQueue = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const queue = await listDeletionQueue();
+    res.status(200).json({ success: true, data: queue });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not fetch deletion queue";
+    res.status(500).json({ success: false, message });
+  }
+};
+
+export const processDeletions = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await processDueDeletions();
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not process deletions";
+    res.status(500).json({ success: false, message });
   }
 };

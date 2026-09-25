@@ -83,7 +83,10 @@ model User {
   totpSecret          String?
   totpEnabled         Boolean             @default(false)
   churchId            String
-  church              Church              @relation(fields: [churchId], references: [id])
+  // Cascade so a church deletion (the 14-day deletion sweep) actually
+  // succeeds — every other tenant table already cascades via its own
+  // churchId, but User rows themselves would otherwise block it.
+  church              Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
   givings             Giving[]
   prayers             Prayer[]
   sermonNotes         SermonNote[]
@@ -342,6 +345,9 @@ model Church {
   status          ChurchStatus    @default(PENDING_APPROVAL)
   requireApproval Boolean         @default(false)
   country         String?
+  // Set when status becomes CANCELLED — starts the 14-day grace period
+  // before the deletion sweep permanently removes this church.
+  cancelledAt     DateTime?
   // Branches are Church rows pointing back at their mother church. Only a
   // church with no parentChurchId (a mother church) should carry a Subscription —
   // branches are covered by the parent's plan; enforced in the service layer.

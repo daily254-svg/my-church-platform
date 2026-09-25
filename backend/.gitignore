@@ -20,6 +20,9 @@ pnpm-debug.log*
 # Uploads (if user-generated files)
 uploads/
 
+# Church data exports — contain member PII/giving records, never committed
+exports/
+
 # Prisma generated files (if applicable)
 prisma/dev.db
 prisma/dev.db-journal

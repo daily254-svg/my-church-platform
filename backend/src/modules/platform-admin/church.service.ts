@@ -1,9 +1,11 @@
 import prisma from "../../config/db";
 import { generateUniqueChurchSlug, generateInviteCode } from "../../utils/slug";
 import { provisionDefaultMinistryGroups } from "../ministry/ministry.service";
+import { emailChurchExport } from "./church-export.service";
 import { CreateChurchInput } from "./church.validation";
 
 const TRIAL_DAYS = 30;
+const DELETION_GRACE_DAYS = 14;
 
 const churchInclude = {
   branches: { include: { subscription: { include: { plan: true } } } },
@@ -105,10 +107,12 @@ export const suspendChurch = async (id: string) => {
 export const reactivateChurch = async (id: string) => {
   const church = await prisma.church.findUnique({ where: { id } });
   if (!church) throw new Error("Church not found");
-  if (church.status !== "SUSPENDED") {
+  // CANCELLED -> ACTIVE undoes a cancellation within the 14-day grace
+  // period — the whole point of not deleting immediately.
+  if (church.status !== "SUSPENDED" && church.status !== "CANCELLED") {
     throw new Error(`Cannot reactivate a church with status ${church.status}`);
   }
-  await prisma.church.update({ where: { id }, data: { status: "ACTIVE" } });
+  await prisma.church.update({ where: { id }, data: { status: "ACTIVE", cancelledAt: null } });
   return getChurchById(id);
 };
 
@@ -118,8 +122,71 @@ export const cancelChurch = async (id: string) => {
   if (church.status === "CANCELLED") {
     throw new Error("Church is already cancelled");
   }
-  // Data export + the 14-day deferred deletion job are wired up separately;
-  // this just starts the clock by flipping status.
-  await prisma.church.update({ where: { id }, data: { status: "CANCELLED" } });
+  await prisma.church.update({ where: { id }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+
+  // Best-effort — cancellation succeeds even if the export email fails;
+  // it can be re-triggered manually via exportNow.
+  emailChurchExport(id).catch((err) => console.error(`[export] Failed to email export for church ${id}:`, err));
+
   return getChurchById(id);
+};
+
+export const exportNow = async (id: string) => {
+  const church = await prisma.church.findUnique({ where: { id } });
+  if (!church) throw new Error("Church not found");
+  await emailChurchExport(id);
+  return getChurchById(id);
+};
+
+export const listDeletionQueue = async () => {
+  const cancelled = await prisma.church.findMany({
+    where: { status: "CANCELLED" },
+    include: { branches: { select: { id: true } } },
+    orderBy: { cancelledAt: "asc" },
+  });
+
+  return cancelled.map((church) => {
+    const cancelledAt = church.cancelledAt!;
+    const deletesAt = new Date(cancelledAt);
+    deletesAt.setDate(deletesAt.getDate() + DELETION_GRACE_DAYS);
+    const daysRemaining = Math.max(0, Math.ceil((deletesAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
+    return {
+      id: church.id,
+      name: church.name,
+      cancelledAt,
+      deletesAt,
+      daysRemaining,
+      blockedByBranches: church.branches.length > 0,
+    };
+  });
+};
+
+// Permanently deletes any church cancelled 14+ days ago. Skips (and
+// reports) mother churches that still have branches attached — deleting
+// those branches as a side effect of the mother's cancellation is a policy
+// call nobody's made yet, so it's left for manual handling instead.
+export const processDueDeletions = async () => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - DELETION_GRACE_DAYS);
+
+  const due = await prisma.church.findMany({
+    where: { status: "CANCELLED", cancelledAt: { lte: cutoff } },
+    include: { branches: { select: { id: true } } },
+  });
+
+  const deleted: { id: string; name: string }[] = [];
+  const skipped: { id: string; name: string; reason: string }[] = [];
+
+  for (const church of due) {
+    if (church.branches.length > 0) {
+      skipped.push({ id: church.id, name: church.name, reason: "still has branches attached" });
+      continue;
+    }
+    await prisma.church.delete({ where: { id: church.id } });
+    deleted.push({ id: church.id, name: church.name });
+    console.log(`[deletion] Permanently deleted church ${church.id} (${church.name}) — cancelled ${DELETION_GRACE_DAYS}+ days ago`);
+  }
+
+  return { deleted, skipped };
 };
