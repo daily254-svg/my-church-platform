@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/auth.middleware";
 import { authorize } from "../../middleware/role.middleware";
-import { listPending, listActive, approve, reject, leaveSelf, markLeft, listInvites, invite, revoke } from "./members.controller";
+import { listPending, listActive, approve, reject, leaveSelf, markLeft, getDetail, listInvites, invite, revoke } from "./members.controller";
 
 const router = Router();
 
@@ -21,5 +21,9 @@ router.post("/:userId/mark-left", authenticate, authorize(["ADMIN", "SECRETARY"]
 router.get("/invites", authenticate, authorize(["ADMIN"]), listInvites);
 router.post("/invites", authenticate, authorize(["ADMIN"]), invite);
 router.post("/invites/:inviteId/revoke", authenticate, authorize(["ADMIN"]), revoke);
+
+// Declared after every other GET route above — a bare "/:userId" would
+// otherwise shadow "/pending" and "/invites" (same one-segment shape).
+router.get("/:userId", authenticate, authorize(["ADMIN", "SECRETARY"]), getDetail);
 
 export default router;

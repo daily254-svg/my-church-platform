@@ -6,6 +6,7 @@ import {
   approveMember,
   rejectMember,
   leaveChurch,
+  getMemberDetail,
   listPendingInvites,
   inviteStaff,
   revokeInvite,
@@ -105,6 +106,22 @@ export const markLeft = async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to mark member as left";
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const getDetail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const churchId = req.user?.churchId;
+    if (!churchId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const result = await getMemberDetail(userId, churchId);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch member";
     res.status(400).json({ success: false, message });
   }
 };

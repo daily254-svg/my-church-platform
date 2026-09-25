@@ -92,6 +92,45 @@ export const leaveChurch = async (userId: string, churchId: string) => {
   });
 };
 
+const DETAIL_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  gender: true,
+  ministry: true,
+  role: true,
+  requestedRole: true,
+  status: true,
+  createdAt: true,
+} as const;
+
+export const getMemberDetail = async (userId: string, churchId: string) => {
+  const user = await prisma.user.findFirst({ where: { id: userId, churchId }, select: DETAIL_SELECT });
+  if (!user) {
+    throw new Error("Member not found");
+  }
+
+  const [ministries, givings, eventRegistrations] = await Promise.all([
+    prisma.ministryMember.findMany({
+      where: { userId },
+      select: { joinedAt: true, group: { select: { id: true, name: true, accent: true } } },
+    }),
+    prisma.giving.findMany({
+      where: { userId, churchId },
+      select: { id: true, category: true, amount: true, service: true, status: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.eventRegistration.findMany({
+      where: { userId, event: { churchId } },
+      select: { id: true, createdAt: true, event: { select: { id: true, title: true, date: true, time: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return { ...user, ministries, givings, eventRegistrations };
+};
+
 // ── Staff invites ───────────────────────────────────────────────────
 
 const INVITE_SELECT = {

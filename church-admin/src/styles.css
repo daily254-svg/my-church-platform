@@ -313,3 +313,53 @@ textarea { resize: vertical; min-height: 70px; }
 .badge-PENDING { background: #fef3c7; color: #92400e; }
 .badge-CONFIRMED { background: #d1fae5; color: #065f46; }
 .badge-REJECTED { background: #fee2e2; color: #991b1b; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 560px;
+  padding: 24px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 { margin: 0 0 4px; }
+
+.modal-section {
+  margin-top: 18px;
+}
+
+.modal-section h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #666;
+  margin: 0 0 8px;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f8f9fb;
+}

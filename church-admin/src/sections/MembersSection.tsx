@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 import { listPendingMembers, listActiveMembers, approveMember, rejectMember, markMemberLeft, type PendingMember, type StaffRole } from "../api";
+import MemberDetailModal from "./MemberDetailModal";
 
 // Backend restricts mark-left to ADMIN/SECRETARY — removing an active
 // member is a records action, not a pastoral one.
 const CAN_MARK_LEFT: StaffRole[] = ["ADMIN", "SECRETARY"];
+// Backend restricts GET /members/:userId the same way — member detail is
+// a records lookup, not something PASTOR/MEDIA get here.
+const CAN_VIEW_DETAIL: StaffRole[] = ["ADMIN", "SECRETARY"];
 
 export default function MembersSection({ token, role }: { token: string; role: StaffRole }) {
   const [pending, setPending] = useState<PendingMember[] | null>(null);
   const [active, setActive] = useState<PendingMember[] | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
 
   const refresh = () => {
     listPendingMembers(token)
@@ -34,6 +39,8 @@ export default function MembersSection({ token, role }: { token: string; role: S
       setBusyId(null);
     }
   };
+
+  const canViewDetail = CAN_VIEW_DETAIL.includes(role);
 
   return (
     <div>
@@ -78,7 +85,11 @@ export default function MembersSection({ token, role }: { token: string; role: S
         {active === null && <div className="empty">Loading...</div>}
         {active?.length === 0 && <div className="empty">No active members yet.</div>}
         {active?.map((m) => (
-          <div key={m.id} className="item-row">
+          <div
+            key={m.id}
+            className={`item-row ${canViewDetail ? "clickable-row" : ""}`}
+            onClick={() => canViewDetail && setDetailUserId(m.id)}
+          >
             <div>
               <strong>{m.name || m.email}</strong> <span className="meta">· {m.role}</span>
               <div className="meta">
@@ -87,7 +98,7 @@ export default function MembersSection({ token, role }: { token: string; role: S
               </div>
             </div>
             {CAN_MARK_LEFT.includes(role) && (
-              <div className="actions">
+              <div className="actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   className="btn-danger btn-small"
                   disabled={busyId === m.id}
@@ -102,6 +113,10 @@ export default function MembersSection({ token, role }: { token: string; role: S
           </div>
         ))}
       </div>
+
+      {detailUserId && (
+        <MemberDetailModal token={token} userId={detailUserId} onClose={() => setDetailUserId(null)} />
+      )}
     </div>
   );
 }

@@ -103,6 +103,20 @@ export const listActiveMembers = (token: string) => request<PendingMember[]>("/m
 export const markMemberLeft = (token: string, userId: string) =>
   request<PendingMember>(`/members/${userId}/mark-left`, { method: "POST" }, token);
 
+export interface MemberDetail extends PendingMember {
+  gender: string | null;
+  ministries: { joinedAt: string; group: { id: string; name: string; accent: string } }[];
+  givings: { id: string; category: string; amount: number; service: string; status: string; createdAt: string }[];
+  eventRegistrations: {
+    id: string;
+    createdAt: string;
+    event: { id: string; title: string; date: string; time: string };
+  }[];
+}
+
+export const getMemberDetail = (token: string, userId: string) =>
+  request<MemberDetail>(`/members/${userId}`, {}, token);
+
 // ── Staff invites ─────────────────────────────────────────────────
 
 export interface StaffInvite {
