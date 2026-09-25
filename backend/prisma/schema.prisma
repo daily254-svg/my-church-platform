@@ -66,17 +66,17 @@ enum FeedPostType {
 }
 
 model User {
-  id                  String            @id @default(uuid())
-  email               String            @unique
+  id                  String              @id @default(uuid())
+  email               String              @unique
   password            String
   name                String?
   phone               String?
   gender              String?
   ministry            String?
-  pushToken           String? 
+  pushToken           String?
   avatarUrl           String?
-  role                Role              @default(MEMBER)
-  status              UserStatus        @default(ACTIVE)
+  role                Role                @default(MEMBER)
+  status              UserStatus          @default(ACTIVE)
   requestedRole       Role?
   givings             Giving[]
   prayers             Prayer[]
@@ -87,8 +87,8 @@ model User {
   ministryMemberships MinistryMember[]
   ministryMessages    MinistryMessage[]
   eventRegistrations  EventRegistration[]
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 }
 
 model MinistryGroup {
@@ -159,32 +159,32 @@ model Announcement {
 }
 
 model Giving {
-  id        String        @id @default(uuid())
+  id        String       @id @default(uuid())
   userId    String
-  user      User          @relation(fields: [userId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
   category  GivingType
   amount    Float
   reference String?
   note      String?
   service   String
-  status    GivingStatus  @default(CONFIRMED)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  status    GivingStatus @default(CONFIRMED)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 model Event {
-  id                      String               @id @default(uuid())
+  id                      String              @id @default(uuid())
   title                   String
   date                    String
   time                    String
   type                    String
-  accent                  String               @default("#1B3A7A")
-  acceptRegistration      Boolean              @default(false)
+  accent                  String              @default("#1B3A7A")
+  acceptRegistration      Boolean             @default(false)
   registrationTitle       String?
   registrationDescription String?
   registrationFields      Json?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
   registrations           EventRegistration[]
 }
 
@@ -258,4 +258,86 @@ model SermonNote {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ── Platform layer (multi-tenancy) ─────────────────────────────
+// PlatformStaff manages the whole platform (churches, subscriptions) and is
+// intentionally its own identity — not a church User, not scoped by churchId.
+
+enum PlatformStaffRole {
+  OWNER
+  SUPPORT
+}
+
+enum ChurchStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  DISABLED
+  CANCELLED
+}
+
+model PlatformStaff {
+  id          String            @id @default(uuid())
+  email       String            @unique
+  password    String
+  name        String
+  role        PlatformStaffRole @default(SUPPORT)
+  totpSecret  String?
+  totpEnabled Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  slug          String         @unique
+  // Max branches a church on this plan may create under it. 0 = single church, no branches.
+  maxBranches   Int            @default(0)
+  priceKES      Float?
+  priceUSD      Float?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Church {
+  id              String        @id @default(uuid())
+  name            String
+  slug            String        @unique
+  inviteCode      String        @unique
+  status          ChurchStatus  @default(PENDING_APPROVAL)
+  requireApproval Boolean       @default(false)
+  country         String?
+  // Branches are Church rows pointing back at their mother church. Only a
+  // church with no parentChurchId (a mother church) should carry a Subscription —
+  // branches are covered by the parent's plan; enforced in the service layer.
+  parentChurchId  String?
+  parentChurch    Church?       @relation("ChurchBranches", fields: [parentChurchId], references: [id])
+  branches        Church[]      @relation("ChurchBranches")
+  subscription    Subscription?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Subscription {
+  id               String             @id @default(uuid())
+  churchId         String             @unique
+  church           Church             @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             Plan               @relation(fields: [planId], references: [id])
+  status           SubscriptionStatus @default(TRIALING)
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }

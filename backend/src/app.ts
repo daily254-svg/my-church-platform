@@ -13,6 +13,7 @@ import uploadRoutes from "./modules/upload/upload.routes";
 import scriptureRoutes from "./modules/scripture/scripture.routes";
 import { scriptureService } from "./modules/scripture/services/scripture.service";
 import sermonNoteRoutes from "./modules/sermon-notes/sermon-note.routes";
+import platformAdminRoutes from "./modules/platform-admin/platform-admin.routes";
 
 import path from "path";
 // Future: import memberRoutes from "./modules/members/member.routes";
@@ -42,6 +43,7 @@ app.use("/feed", feedRoutes);
 app.use("/ministry", ministryRoutes);
 app.use("/scripture", scriptureRoutes);
 app.use("/api/sermon-notes", sermonNoteRoutes);
+app.use("/platform-admin", platformAdminRoutes);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
