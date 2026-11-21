@@ -1,8 +1,8 @@
 export const API_URL =
-  "https://my-church-12.onrender.com";
+  "https://bookish-space-acorn-694qww565rrvhxj4-4000.app.github.dev";
 
 export const SOCKET_URL =
-  "https://my-church-12.onrender.com";
+  "https://bookish-space-acorn-694qww565rrvhxj4-4000.app.github.dev";
 
 export const API_ROUTES = {
   auth: {
